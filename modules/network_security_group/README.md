@@ -1,15 +1,17 @@
-# Network Security Group Module
+# Network Security Group (NSG) Module
 
-This module provisions an Azure Network Security Group with configurable security rules for network traffic control.
+A Terraform module for creating and managing Azure Network Security Groups with comprehensive security rules.
 
 ## Features
 
-- Configurable inbound and outbound security rules
-- Priority-based rule processing
-- Source/destination IP filtering
-- Service tag support
+- Flexible security rule configuration
+- Support for service tags
 - Application security group integration
-- Port range configuration
+- Priority-based rule management
+- Source/destination filtering
+- Protocol and port management
+- Statefull packet inspection
+- Azure Policy integration ready
 
 ## Usage
 
@@ -17,48 +19,122 @@ This module provisions an Azure Network Security Group with configurable securit
 module "nsg" {
   source = "./modules/network_security_group"
 
-  nsg_name            = "aks-nsg"
-  resource_group_name = "my-rg"
+  nsg_name            = "aks-subnet-nsg"
+  resource_group_name = module.resource_group.name
   location           = "eastus"
-  
+
   security_rules = [
     {
-      name                       = "allow_https"
-      priority                   = 100
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range         = "*"
-      destination_port_range    = "443"
-      source_address_prefix     = "*"
+      name                         = "allow_aks_api"
+      priority                     = 100
+      direction                   = "Inbound"
+      access                      = "Allow"
+      protocol                    = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "443"
+      source_address_prefix      = "AzureCloud"
+      destination_address_prefix = "VirtualNetwork"
+      description                = "Allow AKS API Server access"
+    },
+    {
+      name                         = "deny_all_inbound"
+      priority                     = 4096
+      direction                   = "Inbound"
+      access                      = "Deny"
+      protocol                    = "*"
+      source_port_range          = "*"
+      destination_port_range     = "*"
+      source_address_prefix      = "*"
       destination_address_prefix = "*"
+      description                = "Deny all inbound traffic"
     }
   ]
-  
+
   tags = {
     Environment = "Production"
+    ManagedBy   = "Terraform"
   }
 }
 ```
 
-## Required Providers
+## Requirements
 
-- azurerm ~> 3.0
+| Name | Version |
+|------|---------|
+| terraform | >= 1.0.0 |
+| azurerm | ~> 3.0 |
 
 ## Variables
 
-| Name | Description | Type | Required |
-|------|-------------|------|----------|
-| nsg_name | Name of the NSG | string | yes |
-| resource_group_name | Resource group name | string | yes |
-| location | Azure region | string | yes |
-| security_rules | List of security rules | list(object) | no |
-| tags | Resource tags | map(string) | no |
+| Name | Description | Type | Required | Default |
+|------|-------------|------|----------|---------|
+| nsg_name | Name of the NSG | string | yes | - |
+| resource_group_name | Resource group name | string | yes | - |
+| location | Azure region | string | yes | - |
+| security_rules | List of security rules | list(object) | no | [] |
+| tags | Resource tags | map(string) | no | {} |
+
+### Security Rule Object Structure
+
+```hcl
+object({
+  name                         = string
+  priority                     = number
+  direction                   = string
+  access                      = string
+  protocol                    = string
+  source_port_range          = string
+  destination_port_range     = string
+  source_address_prefix      = string
+  destination_address_prefix = string
+  description                = string
+})
+```
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| nsg_id | The NSG ID |
+| nsg_id | The NSG resource ID |
 | nsg_name | The name of the NSG |
 | security_rules | List of configured security rules |
+
+## Best Practices
+
+### Rule Priority
+- Use priorities 100-499 for allow rules
+- Use priorities 500-4096 for deny rules
+- Leave gaps between rules for future insertions
+
+### Service Tags
+Utilize Azure service tags for better maintainability:
+- AzureCloud
+- VirtualNetwork
+- Internet
+- AzureLoadBalancer
+- AzureTrafficManager
+
+### Security Considerations
+- Implement least-privilege access
+- Use specific port ranges instead of wildcards
+- Document rule purposes using descriptions
+- Regular audit of security rules
+
+## Common Configurations
+
+### AKS Cluster Security Rules
+```hcl
+security_rules = [
+  {
+    name                         = "allow_aks_api"
+    priority                     = 100
+    direction                   = "Inbound"
+    access                      = "Allow"
+    protocol                    = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "AzureCloud"
+    destination_address_prefix = "VirtualNetwork"
+  }
+]
+```
