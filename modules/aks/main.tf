@@ -67,7 +67,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   default_node_pool {
     name                = var.system_node_pool_name
     vm_size             = var.system_node_pool_vm_size
-    enable_auto_scaling = true
+    auto_scaling_enabled  = true
     node_count          = null  # Must be null when enable_auto_scaling is true
     max_count           = var.system_node_pool_max_count
     min_count           = var.system_node_pool_min_count
@@ -186,7 +186,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "work" {
   name                  = var.work_node_pool_name
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
   vm_size              = var.work_node_pool_vm_size
-  enable_auto_scaling   = true
+  auto_scaling_enabled  = true
   node_count           = null  # Must be null when enable_auto_scaling is true
   max_count            = var.work_node_pool_max_count
   min_count            = var.work_node_pool_min_count
