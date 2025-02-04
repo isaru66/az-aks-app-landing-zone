@@ -140,6 +140,7 @@ variable "identity_type" {
 variable "log_analytics_workspace_id" {
   description = "The ID of the Log Analytics workspace"
   type        = string
+  default     = "/subscriptions/16ae6f44-2b54-4372-9d8c-54c8431ad26d/resourceGroups/DefaultResourceGroup-SEA/providers/Microsoft.OperationalInsights/workspaces/DefaultWorkspace-16ae6f44-2b54-4372-9d8c-54c8431ad26d-SEA"
 }
 
 variable "azure_policy_enabled" {

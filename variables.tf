@@ -294,9 +294,24 @@ variable "oms_agent_enabled" {
   default     = true
 }
 
-variable "log_analytics_workspace_id" {
-  description = "The ID of the Log Analytics workspace"
+# Remove the log_analytics_workspace_id variable since it's created by the module
+
+variable "log_analytics_workspace_name" {
   type        = string
+  description = "Name of the Log Analytics workspace"
+  default     = "aks-monitoring-workspace"
+}
+
+variable "log_analytics_workspace_sku" {
+  type        = string
+  description = "SKU of the Log Analytics workspace"
+  default     = "PerGB2018"
+}
+
+variable "log_analytics_retention_days" {
+  type        = number
+  description = "Data retention in days for Log Analytics"
+  default     = 30
 }
 
 variable "tags" {
@@ -306,4 +321,43 @@ variable "tags" {
     Environment = "Production"
     ManagedBy   = "Terraform"
   }
+}
+
+variable "environment" {
+  description = "Environment name for the resources"
+  type        = string
+  default     = "prod"
+}
+
+variable "keyvault_name" {
+  description = "Name of the Key Vault"
+  type        = string
+}
+
+variable "keyvault_sku" {
+  description = "SKU name of the Key Vault"
+  type        = string
+  default     = "standard"
+}
+
+variable "keyvault_network_acls" {
+  description = "Network ACLs for the Key Vault"
+  type = object({
+    bypass                     = string
+    default_action            = string
+    ip_rules                  = list(string)
+    virtual_network_subnet_ids = list(string)
+  })
+}
+
+variable "storage_identity_type" {
+  description = "Type of identity for the storage account"
+  type        = string
+  default     = "SystemAssigned"
+}
+
+variable "storage_user_assigned_identity_ids" {
+  description = "List of user-assigned identity IDs for the storage account"
+  type        = list(string)
+  default     = []
 }

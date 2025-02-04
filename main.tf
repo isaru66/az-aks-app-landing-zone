@@ -45,6 +45,37 @@ module "private_dns_zone" {
   tags                = var.tags
 }
 
+module "storage" {
+  source              = "./modules/storage"
+  storage_account_name = lower(replace("${var.resource_group_name}storage", "-", ""))
+  resource_group_name = azurerm_resource_group.this.name
+  location           = azurerm_resource_group.this.location
+  environment        = var.environment
+  subnet_id          = module.subnet["pe-subnet"].subnet_id
+  private_dns_zone_id = module.private_dns_zone.private_dns_zone_id
+  
+  identity_type              = var.storage_identity_type
+  user_assigned_identity_ids = var.storage_user_assigned_identity_ids
+  
+  tags = var.tags
+
+  depends_on = [
+    module.virtual_network,
+    module.subnet,
+    module.private_dns_zone
+  ]
+}
+
+module "log_analytics" {
+  source              = "./modules/log_analytics"
+  workspace_name      = var.log_analytics_workspace_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  retention_in_days   = var.log_analytics_retention_days
+  sku                = var.log_analytics_workspace_sku
+  tags                = var.tags
+}
+
 module "aks" {
   source = "./modules/aks"
 
@@ -93,15 +124,54 @@ module "aks" {
   enable_oidc_issuer    = var.enable_oidc_issuer
 
   # Monitoring and maintenance
-  log_analytics_workspace_id = var.log_analytics_workspace_id
   azure_policy_enabled      = var.azure_policy_enabled
   maintenance_window        = var.maintenance_window
   automatic_channel_upgrade = var.automatic_channel_upgrade
+
+  # Log Analytics configuration - use the workspace ID from the module
+  log_analytics_workspace_id = module.log_analytics.workspace_id
 
   tags = var.tags
 
   depends_on = [
     module.virtual_network,
+    module.subnet,
+    module.log_analytics
+  ]
+}
+
+resource "azurerm_private_dns_zone" "keyvault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.this.name
+  tags               = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "keyvault" {
+  name                  = "keyvault-link"
+  resource_group_name   = azurerm_resource_group.this.name
+  private_dns_zone_name = azurerm_private_dns_zone.keyvault.name
+  virtual_network_id    = module.virtual_network.virtual_network_id
+  registration_enabled  = false
+  tags                 = var.tags
+}
+
+module "key_vault" {
+  source = "./modules/keyvault"
+
+  name                = var.keyvault_name
+  resource_group_name = azurerm_resource_group.this.name
+  location           = var.location
+  sku_name           = var.keyvault_sku
+
+  network_acls            = var.keyvault_network_acls
+  private_endpoint_subnet_id = module.subnet["pe-subnet"].subnet_id
+  private_dns_zone_ids    = [azurerm_private_dns_zone.keyvault.id]
+
+  tags = var.tags
+
+  depends_on = [
+    azurerm_private_dns_zone.keyvault,
+    azurerm_private_dns_zone_virtual_network_link.keyvault,
     module.subnet
   ]
 }
