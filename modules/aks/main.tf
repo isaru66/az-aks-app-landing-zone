@@ -1,4 +1,5 @@
 data "azurerm_client_config" "current" {}
+data "azurerm_subscription" "current" {}
 
 # Create user-assigned managed identity for AKS
 resource "azurerm_user_assigned_identity" "aks_identity" {
@@ -15,6 +16,20 @@ resource "azurerm_role_assignment" "dns_contributor" {
   principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
 }
 
+# Grant AKS identity Network Contributor role on the subnet
+resource "azurerm_role_assignment" "network_contributor" {
+  scope                = var.subnet_id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
+}
+
+# Grant AKS identity Managed Identity Operator role on itself
+resource "azurerm_role_assignment" "mi_operator" {
+  scope                = azurerm_user_assigned_identity.aks_identity.id
+  role_definition_name = "Managed Identity Operator"
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
+}
+
 # Grant AKS identity AcrPull access to ACR
 resource "azurerm_role_assignment" "aks_acr_pull" {
   count                = var.attach_acr ? 1 : 0
@@ -23,59 +38,104 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   principal_id         = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id
 }
 
-# resource "azurerm_monitor_workspace" "prometheus" {
-#   count               = var.enable_managed_prometheus ? 1 : 0
-#   name                = "${var.cluster_name}-prometheus"
-#   resource_group_name = var.resource_group_name
-#   location            = var.location
-#   tags                = var.tags
-# }
+# Grant AKS identity Contributor role on the resource group
+resource "azurerm_role_assignment" "rg_contributor" {
+  scope                = "/subscriptions/${data.azurerm_subscription.current.subscription_id}/resourceGroups/${var.resource_group_name}"
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
+}
 
-# resource "azurerm_dashboard_grafana" "grafana" {
-#   count                   = var.enable_managed_prometheus ? 1 : 0
-#   name                    = var.grafana_name
-#   resource_group_name     = var.resource_group_name
-#   location               = var.location
-#   sku                    = "Standard"
-#   api_key_enabled        = true
-#   deterministic_outbound_ip_enabled = true
-#   public_network_access_enabled     = true
+# Grant AKS identity Reader role on the subscription
+resource "azurerm_role_assignment" "subscription_reader" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
+}
 
-#   identity {
-#     type = "SystemAssigned"
-#   }
+resource "azurerm_monitor_workspace" "prometheus" {
+  count               = var.enable_managed_prometheus && var.monitor_workspace_id == null ? 1 : 0
+  name                = "${var.cluster_name}-prometheus"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
 
-#   azure_monitor_workspace_integrations {
-#     resource_id = azurerm_monitor_workspace.prometheus[0].id
-#   }
+# Add monitoring data access role assignment
+resource "azurerm_role_assignment" "monitoring_data_reader" {
+  count                = var.enable_managed_prometheus ? 1 : 0
+  scope                = var.monitor_workspace_id != null ? var.monitor_workspace_id : azurerm_monitor_workspace.prometheus[0].id
+  role_definition_name = "Monitoring Data Reader"
+  principal_id         = azurerm_dashboard_grafana.grafana[0].identity[0].principal_id
+}
 
-#   tags = var.tags
-# }
+resource "azurerm_dashboard_grafana" "grafana" {
+  count                             = var.enable_managed_prometheus ? 1 : 0
+  name                              = var.grafana_name
+  resource_group_name               = var.resource_group_name
+  location                          = var.location
+  sku                              = "Standard"
+  grafana_major_version            = "10"
+  api_key_enabled                   = true
+  deterministic_outbound_ip_enabled = true
+  public_network_access_enabled     = true
 
-# resource "azurerm_role_assignment" "grafana_admin" {
-#   for_each             = var.enable_managed_prometheus ? toset(var.grafana_admin_object_ids) : []
-#   scope                = azurerm_dashboard_grafana.grafana[0].id
-#   role_definition_name = "Grafana Admin"
-#   principal_id         = each.value
-# }
+  identity {
+    type = "SystemAssigned"
+  }
+
+  azure_monitor_workspace_integrations {
+    resource_id = var.monitor_workspace_id != null ? var.monitor_workspace_id : azurerm_monitor_workspace.prometheus[0].id
+  }
+
+  tags = var.tags
+}
+
+resource "azurerm_role_assignment" "grafana_admin" {
+  for_each             = var.enable_managed_prometheus ? toset(var.grafana_admin_object_ids) : []
+  scope                = azurerm_dashboard_grafana.grafana[0].id
+  role_definition_name = "Grafana Admin"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "grafana_monitoring_reader" {
+  count                = var.enable_managed_prometheus ? 1 : 0
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Monitoring Reader"
+  principal_id         = azurerm_dashboard_grafana.grafana[0].identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "grafana_admin_current" {
+  count                = var.enable_managed_prometheus ? 1 : 0
+  scope                = azurerm_dashboard_grafana.grafana[0].id
+  role_definition_name = "Grafana Admin"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
 
 resource "azurerm_kubernetes_cluster" "this" {
-  name                = var.cluster_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  dns_prefix          = var.cluster_name
-  kubernetes_version  = var.kubernetes_version
-  sku_tier            = var.sku_tier
+  name                      = var.cluster_name
+  location                  = var.location
+  resource_group_name       = var.resource_group_name
+  dns_prefix                = var.cluster_name
+  kubernetes_version        = var.kubernetes_version
+  sku_tier                  = var.sku_tier
+  automatic_channel_upgrade = var.automatic_channel_upgrade
   
   private_cluster_enabled = var.private_cluster_enabled
   private_dns_zone_id    = var.private_dns_zone_id
   
   role_based_access_control_enabled = true
   
+  azure_active_directory_role_based_access_control {
+    managed         = true
+    azure_rbac_enabled = true
+    tenant_id       = data.azurerm_client_config.current.tenant_id
+    admin_group_object_ids = []  # Empty list since we're using azure_rbac_enabled
+  }
+  
   default_node_pool {
     name                = var.system_node_pool_name
     vm_size             = var.system_node_pool_vm_size
-    auto_scaling_enabled  = true
+    enable_auto_scaling = true
     node_count          = null  # Must be null when enable_auto_scaling is true
     max_count           = var.system_node_pool_max_count
     min_count           = var.system_node_pool_min_count
@@ -103,6 +163,12 @@ resource "azurerm_kubernetes_cluster" "this" {
   identity {
     type = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.aks_identity.id]
+  }
+
+  kubelet_identity {
+    user_assigned_identity_id = azurerm_user_assigned_identity.aks_identity.id
+    client_id                = azurerm_user_assigned_identity.aks_identity.client_id
+    object_id                = azurerm_user_assigned_identity.aks_identity.principal_id
   }
 
   network_profile {
@@ -175,6 +241,13 @@ resource "azurerm_kubernetes_cluster" "this" {
   tags = var.tags
 }
 
+resource "azurerm_role_assignment" "aks_monitoring_access" {
+  count                = var.enable_managed_prometheus ? 1 : 0
+  scope                = var.monitor_workspace_id != null ? var.monitor_workspace_id : azurerm_monitor_workspace.prometheus[0].id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id
+}
+
 resource "azurerm_monitor_diagnostic_setting" "aks_diagnostic_setting" {
   name                       = var.diagnostic_setting_name
   target_resource_id         = azurerm_kubernetes_cluster.this.id
@@ -194,7 +267,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "work" {
   name                  = var.work_node_pool_name
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
   vm_size              = var.work_node_pool_vm_size
-  auto_scaling_enabled  = true
+  enable_auto_scaling  = true
   node_count           = null  # Must be null when enable_auto_scaling is true
   max_count            = var.work_node_pool_max_count
   min_count            = var.work_node_pool_min_count
@@ -217,4 +290,35 @@ resource "azurerm_kubernetes_cluster_node_pool" "work" {
   }
   
   tags = var.tags
+}
+
+# Create an Azure Monitor Data Collection Rule for AKS
+resource "azurerm_monitor_data_collection_rule" "aks" {
+  count               = var.enable_managed_prometheus ? 1 : 0
+  name                = "${var.cluster_name}-metrics"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+
+  destinations {
+    monitor_account {
+      monitor_account_id = var.monitor_workspace_id != null ? var.monitor_workspace_id : azurerm_monitor_workspace.prometheus[0].id
+      name              = "prometheus"
+    }
+  }
+
+  data_flow {
+    streams      = ["Microsoft-PrometheusMetrics"]
+    destinations = ["prometheus"]
+  }
+
+  description = "Data collection rule for AKS cluster metrics"
+  tags        = var.tags
+}
+
+# Associate the data collection rule with the AKS cluster
+resource "azurerm_monitor_data_collection_rule_association" "aks" {
+  count                   = var.enable_managed_prometheus ? 1 : 0
+  name                    = "${var.cluster_name}-metrics-dcra"
+  target_resource_id      = azurerm_kubernetes_cluster.this.id
+  data_collection_rule_id = azurerm_monitor_data_collection_rule.aks[0].id
 }

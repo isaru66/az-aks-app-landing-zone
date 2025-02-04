@@ -1,6 +1,66 @@
 # Virtual Network Module
 
-A Terraform module for deploying Azure Virtual Networks with comprehensive networking features and security controls.
+## Prerequisites and Setup
+
+### 1. Required Role Assignments and Permissions
+```bash
+# Check current networking permissions
+az role assignment list \
+    --assignee $(az account show --query user.name -o tsv) \
+    --query "[?contains(roleDefinitionName, 'Network')].roleDefinitionName" \
+    -o tsv
+
+# Assign Network Contributor role if needed
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "Network Contributor" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+
+# For DDoS Protection, verify DDoS Protection Contributor role
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "DDoS Protection Contributor" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+```
+
+### 2. Setting up DDoS Protection (Optional)
+```bash
+# Create DDoS Protection Plan
+az network ddos-protection create \
+    --name "your-ddos-plan" \
+    --resource-group "your-rg" \
+    --location "your-location" \
+    --query id -o tsv
+```
+
+### 3. Network Watcher Requirements
+```bash
+# Enable Network Watcher in your region
+az network watcher configure \
+    --resource-group NetworkWatcherRG \
+    --locations "your-location" \
+    --enabled true
+
+# Verify Network Watcher status
+az network watcher list \
+    --query "[].{Location:location, Enabled:provisioningState}" \
+    -o table
+```
+
+### 4. DNS Configuration
+```bash
+# List available private DNS zones
+az network private-dns zone list \
+    --query "[].{Name:name, ResourceGroup:resourceGroup}" \
+    -o table
+
+# Get custom DNS server IPs (if using Azure AD DS or custom DNS)
+az network dns record-set list \
+    --resource-group "your-dns-rg" \
+    --zone-name "your-dns-zone" \
+    --query "[].{Name:name, Type:type, TTL:ttl, Records:aRecords[].ipv4Address}" \
+    -o table
+```
 
 ## Features
 

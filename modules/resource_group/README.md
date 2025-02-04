@@ -1,32 +1,79 @@
 # Resource Group Module
 
-A Terraform module for managing Azure Resource Groups with proper lifecycle management and access controls.
+## Prerequisites and Setup
+
+### 1. Required Role Assignments
+```bash
+# Check Resource Group management permissions
+az role assignment list \
+    --assignee $(az account show --query user.name -o tsv) \
+    --query "[?contains(roleDefinitionName, 'Resource Group')].roleDefinitionName" \
+    -o tsv
+
+# Assign Resource Group Contributor role if needed
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "Resource Group Contributor" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+
+# For full management, consider Owner role (use with caution)
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "Owner" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+```
+
+### 2. Resource Lock Setup (Optional but Recommended)
+```bash
+# List existing locks
+az lock list \
+    --resource-group "your-rg" \
+    --output table
+
+# Create delete lock (prevents accidental deletion)
+az lock create \
+    --name "prevent-delete" \
+    --resource-group "your-rg" \
+    --lock-type CanNotDelete
+```
+
+### 3. Policy Assignment
+```bash
+# List available policies
+az policy definition list \
+    --query "[?contains(displayName, 'Resource Group')].{Name:displayName, Description:description}" \
+    --output table
+
+# Assign required tags policy
+az policy assignment create \
+    --name 'require-resource-group-tags' \
+    --display-name 'Require tags on resource groups' \
+    --policy 'required-tag-keys'
+```
 
 ## Features
-
-- Resource group provisioning
-- Management lock capabilities
-- Comprehensive tagging support
-- Role-based access control (RBAC) integration
-- Resource organization best practices
-- Policy assignment support
+- Resource group lifecycle management
+- Resource organization and grouping
+- Access control management
+- Policy enforcement
+- Resource locking capabilities
+- Tag management
 
 ## Usage
-
 ```hcl
 module "resource_group" {
   source = "./modules/resource_group"
-
+  
   name     = "prod-aks-rg"
   location = "eastus"
   
-  enable_delete_lock = true
+  lock_level = "CanNotDelete"  # Optional: ReadOnly, CanNotDelete
   
   tags = {
     Environment = "Production"
-    Owner       = "Platform Team"
-    CostCenter  = "IT-123"
     ManagedBy   = "Terraform"
+    Project     = "AKS Infrastructure"
+    Owner       = "Platform Team"
   }
 }
 
@@ -64,6 +111,7 @@ module "resource_group_with_rbac" {
 |------|-------------|------|----------|---------|
 | name | Resource group name | string | yes | - |
 | location | Azure region | string | yes | - |
+| lock_level | Resource lock level | string | no | null |
 | enable_delete_lock | Enable deletion lock | bool | no | false |
 | role_assignments | List of role assignments | list(object) | no | [] |
 | tags | Resource tags | map(string) | no | {} |
@@ -87,31 +135,10 @@ object({
 | location | The location of the Resource Group |
 
 ## Best Practices
-
-### Naming Convention
-Follow Azure naming conventions:
-- Use lowercase letters and numbers
-- Maximum 90 characters
-- Valid characters: alphanumeric, underscore, and hyphen
-- Must be unique within subscription
-
-### Resource Organization
+- Use consistent naming conventions
+- Implement proper tagging strategy
+- Consider resource locks for production
 - Group related resources together
-- Separate production and non-production resources
-- Consider compliance requirements
-- Plan for resource lifecycle management
-
-### Security
-- Implement least-privilege access
-- Use management locks for critical resources
-- Regular access reviews
-- Document purpose and ownership
-
-### Tags
-Essential tags to consider:
-- Environment
-- Owner
-- CostCenter
-- Project
-- Application
-- ManagedBy
+- Implement RBAC at resource group level
+- Apply relevant policies
+- Monitor resource usage

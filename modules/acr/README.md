@@ -1,6 +1,64 @@
 # Azure Container Registry (ACR) Module
 
-A Terraform module for deploying Azure Container Registry with security best practices and private networking.
+## Prerequisites and Setup
+
+### 1. Required Role Assignments
+```bash
+# Check your current roles
+az role assignment list --assignee $(az account show --query user.name -o tsv) --output table
+
+# Assign ACR roles if needed
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "AcrPull" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "AcrPush" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+```
+
+### 2. Setting up AKS Integration
+```bash
+# Get AKS Kubelet Identity Object ID
+AKS_KUBELET_ID=$(az aks show -g "your-rg" -n "your-cluster" \
+    --query "identityProfile.kubeletidentity.objectId" -o tsv)
+
+# Assign AcrPull role to AKS kubelet identity
+az role assignment create \
+    --assignee $AKS_KUBELET_ID \
+    --role "AcrPull" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/your-rg/providers/Microsoft.ContainerRegistry/registries/your-acr-name"
+```
+
+### 3. Private Endpoint Setup
+```bash
+# Get Subnet ID for Private Endpoint
+SUBNET_ID=$(az network vnet subnet show \
+    --resource-group "your-vnet-rg" \
+    --vnet-name "your-vnet" \
+    --name "pe-subnet" \
+    --query id -o tsv)
+
+# Get Private DNS Zone ID
+DNS_ZONE_ID=$(az network private-dns zone show \
+    --resource-group "your-dns-rg" \
+    --name "privatelink.azurecr.io" \
+    --query id -o tsv)
+```
+
+### 4. Configure Network Access
+```bash
+# Get your current IP for firewall rules
+CURRENT_IP=$(curl -s https://api.ipify.org)
+
+# Configure network rule (if needed)
+az acr network-rule add \
+    --name "your-acr-name" \
+    --resource-group "your-rg" \
+    --ip-address $CURRENT_IP
+```
 
 ## Features
 

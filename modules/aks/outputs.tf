@@ -40,3 +40,8 @@ output "kubelet_identity" {
   description = "The kubelet managed identity of the cluster"
   value       = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id
 }
+
+output "monitor_workspace_id" {
+  description = "The ID of the Azure Monitor workspace used by AKS"
+  value       = var.monitor_workspace_id != null ? var.monitor_workspace_id : try(azurerm_monitor_workspace.prometheus[0].id, null)
+}

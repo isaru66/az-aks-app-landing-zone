@@ -3,82 +3,108 @@ resource "azurerm_network_security_group" "this" {
   location            = var.location
   resource_group_name = var.resource_group_name
 
-  # Allow inbound traffic from Azure Load Balancer
+  # Allow HTTPS inbound from Internet to Bastion
   security_rule {
-    name                       = "Allow-LB-Inbound"
-    priority                   = 1000
+    name                       = "AllowHttpsInbound"
+    priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
-    protocol                   = "*"
+    protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  # Allow GatewayManager inbound to Bastion
+  security_rule {
+    name                       = "AllowGatewayManagerInbound"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "GatewayManager"
+    destination_address_prefix = "*"
+  }
+
+  # Allow inbound traffic from Azure Load Balancer
+  security_rule {
+    name                       = "AllowLoadBalancerInbound"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
     source_address_prefix      = "AzureLoadBalancer"
     destination_address_prefix = "*"
   }
 
-  # Allow inbound traffic within the subnet
+  # Allow inbound VirtualNetwork traffic
   security_rule {
-    name                       = "Allow-Internal-Inbound"
-    priority                   = 1001
+    name                       = "AllowBastionHostCommunicationInbound"
+    priority                   = 130
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "*"
+    source_port_range         = "*"
+    destination_port_ranges    = ["8080", "5701"]
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  # Allow Bastion outbound to target VMs (SSH)
+  security_rule {
+    name                       = "AllowSshRdpOutbound"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range         = "*"
+    destination_port_ranges    = ["22", "3389"]
+    source_address_prefix      = "*"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  # Allow Bastion control plane communication
+  security_rule {
+    name                       = "AllowAzureCloudOutbound"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range         = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  # Allow Bastion data plane communication
+  security_rule {
+    name                       = "AllowBastionCommunication"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range         = "*"
+    destination_port_ranges    = ["8080", "5701"]
     source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "VirtualNetwork"
   }
 
   # Allow outbound traffic to Azure Monitor
   security_rule {
-    name                       = "Allow-Monitor-Outbound"
-    priority                   = 1002
+    name                       = "AllowGetSessionInformation"
+    priority                   = 130
     direction                  = "Outbound"
     access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_ranges    = ["443"]
-    source_address_prefix      = "*"
-    destination_address_prefix = "AzureMonitor"
-  }
-
-  # Allow outbound traffic to Azure Container Registry
-  security_rule {
-    name                       = "Allow-ACR-Outbound"
-    priority                   = 1003
-    direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "443"
-    source_address_prefix      = "*"
-    destination_address_prefix = "AzureContainerRegistry"
-  }
-
-  # Allow outbound traffic within the subnet
-  security_rule {
-    name                       = "Allow-Internal-Outbound"
-    priority                   = 1004
-    direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "VirtualNetwork"
-    destination_address_prefix = "VirtualNetwork"
-  }
-
-  # Deny all other inbound traffic
-  security_rule {
-    name                       = "Deny-All-Inbound"
-    priority                   = 4096
-    direction                  = "Inbound"
-    access                     = "Deny"
     protocol                   = "*"
     source_port_range         = "*"
-    destination_port_range    = "*"
-    source_address_prefix     = "*"
-    destination_address_prefix = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
   }
 
   tags = var.tags

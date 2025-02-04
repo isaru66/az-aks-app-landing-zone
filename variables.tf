@@ -116,6 +116,7 @@ variable "private_cluster_enabled" {
 variable "private_dns_zone_id" {
   description = "The ID of the Private DNS Zone for private cluster"
   type        = string
+  default     = null
 }
 
 variable "admin_group_object_ids" {
@@ -382,4 +383,23 @@ variable "acr_public_access_enabled" {
   description = "Enable public network access for ACR"
   type        = bool
   default     = false
+}
+
+variable "grafana_name" {
+  description = "Name of the Azure Managed Grafana instance"
+  type        = string
+  default     = "aks-grafana"
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9-]{1,63}$", var.grafana_name))
+    error_message = "Grafana name must be 1-63 characters of alphanumeric characters and hyphens"
+  }
+}
+
+variable "bastion_host_name" {
+  description = "Name of the Azure Bastion Host"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9-]{1,80}$", var.bastion_host_name))
+    error_message = "Bastion host name must be between 1 and 80 characters, containing alphanumeric characters and hyphens"
+  }
 }

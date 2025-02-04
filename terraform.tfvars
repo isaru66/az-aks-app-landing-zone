@@ -25,10 +25,14 @@ subnets = {
     name           = "pe-subnet"
     address_prefix = "10.0.8.0/24"
   }
+  AzureBastionSubnet = {
+    name           = "AzureBastionSubnet"  # This name is required by Azure
+    address_prefix = "10.0.9.0/24"
+  }
 }
 
 # AKS Configuration
-aks_cluster_name          = "example-aks"
+aks_cluster_name          = "jm-example-aks"
 kubernetes_version        = "1.28.3"
 network_plugin           = "azure"
 network_policy           = "azure"
@@ -37,10 +41,9 @@ service_cidr            = "172.16.0.0/16"
 private_cluster_enabled = true
 sku_tier                = "Standard"
 automatic_channel_upgrade = "stable"
-private_dns_zone_id      = "/subscriptions/SUBSCRIPTION_ID/resourceGroups/DNS_RG/providers/Microsoft.Network/privateDnsZones/privatelink.LOCATION.azmk8s.io"
 
 # Security Configuration
-admin_group_object_ids    = ["85151f3e-784d-4ed4-82ac-f4895d2fcf5e"]
+admin_group_object_ids = []  # This will be populated automatically by the aks_admin_group module
 enable_defender          = true
 enable_workload_identity = true
 enable_oidc_issuer       = true
@@ -103,3 +106,11 @@ storage_user_assigned_identity_ids = []
 acr_name                   = "jmexampleacr001"
 acr_sku                    = "Premium"
 acr_public_access_enabled = false
+
+# Managed Prometheus and Grafana Configuration
+enable_managed_prometheus = true
+grafana_name             = "aks-grafana"  # Replace with your desired Grafana instance name
+
+# Bastion Configuration
+bastion_host_name = "jm-bastion"
+

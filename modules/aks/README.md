@@ -2,6 +2,59 @@
 
 A comprehensive Terraform module for deploying production-ready Azure Kubernetes Service clusters with best practices.
 
+## Prerequisites and Setup
+
+### 1. Required Azure CLI Extensions
+```bash
+# Install/update AKS preview extension
+az extension add --name aks-preview
+az extension update --name aks-preview
+
+# Install Azure AD extension
+az extension add --name azure-cli-ml
+```
+
+### 2. Required Role Assignments
+Ensure you have the following roles:
+- "Azure Kubernetes Service Cluster Admin Role"
+- "Network Contributor" (for VNet integration)
+- "User Access Administrator" (for assigning roles)
+
+### 3. Gathering Required Credentials
+
+#### Azure AD Group Setup for AKS Admin Access
+```bash
+# Create an Azure AD Admin Group if not exists
+az ad group create --display-name "AKS-Cluster-Admins" --mail-nickname "aks-cluster-admins"
+
+# Add users to the admin group
+az ad group member add --group "AKS-Cluster-Admins" --member-id "user-object-id"
+
+# Get admin_group_object_ids (required for terraform.tfvars)
+az ad group show --group "AKS-Cluster-Admins" --query id -o tsv
+```
+
+#### User-Assigned Managed Identity (Optional)
+```bash
+# Create User-Assigned Managed Identity
+az identity create --name "aks-identity" --resource-group "your-rg-name" --location "your-location"
+
+# Get the identity ID and client ID
+az identity show --name "aks-identity" --resource-group "your-rg-name"
+```
+
+#### Workload Identity Setup
+```bash
+# Enable OIDC issuer feature
+az feature register --namespace "Microsoft.ContainerService" --name "AKS-AADWorkloadIdentity"
+
+# Check registration status
+az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/AKS-AADWorkloadIdentity')].{Name:name,State:properties.state}"
+
+# When ready, refresh the registration
+az provider register --namespace Microsoft.ContainerService
+```
+
 ## Features
 
 - Private cluster deployment with Azure CNI networking

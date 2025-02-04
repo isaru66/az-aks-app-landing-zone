@@ -160,13 +160,20 @@ variable "private_cluster_enabled" {
 }
 
 variable "private_dns_zone_id" {
-  description = "The ID of the Private DNS Zone for private cluster"
+  description = "The ID of the Private DNS Zone for private cluster. If not specified, Azure will create and manage a Private DNS Zone automatically."
   type        = string
+  default     = null
 }
 
 variable "admin_group_object_ids" {
   description = "AD Group Object IDs that will have admin access to the cluster"
   type        = list(string)
+}
+
+variable "admin_group_name" {
+  description = "The name of the Azure AD group that will have admin access to the AKS cluster"
+  type        = string
+  default     = "AKS-Admins"  # You can change this default value
 }
 
 variable "network_plugin" {
@@ -282,6 +289,35 @@ variable "attach_acr" {
 
 variable "acr_id" {
   description = "ID of the Azure Container Registry to attach to the AKS cluster"
+  type        = string
+  default     = null
+}
+
+variable "enable_managed_prometheus" {
+  description = "Enable Azure Managed Prometheus"
+  type        = bool
+  default     = false
+}
+
+variable "grafana_name" {
+  description = "Name of the Azure Managed Grafana instance"
+  type        = string
+}
+
+variable "grafana_admin_object_ids" {
+  description = "List of Azure AD object IDs that will have the Grafana Admin role"
+  type        = list(string)
+  default     = []
+}
+
+variable "monitor_workspace_id" {
+  description = "The ID of an existing Azure Monitor workspace. If provided, this workspace will be used instead of creating a new one."
+  type        = string
+  default     = null
+}
+
+variable "data_collection_rule_association_name" {
+  description = "Name of the data collection rule association"
   type        = string
   default     = null
 }

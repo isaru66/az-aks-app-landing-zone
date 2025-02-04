@@ -76,6 +76,13 @@ module "log_analytics" {
   tags                = var.tags
 }
 
+# Azure AD Group for AKS Admins - creating this before AKS cluster
+module "aks_admin_group" {
+  source = "./modules/aad_group"
+  group_name  = "${var.aks_cluster_name}-admins"
+  description = "AKS cluster administrators for ${var.aks_cluster_name}"
+}
+
 module "aks" {
   source = "./modules/aks"
 
@@ -118,7 +125,7 @@ module "aks" {
 
   # Security and identity
   identity_type         = var.identity_type
-  admin_group_object_ids = var.admin_group_object_ids
+  admin_group_object_ids = [module.aks_admin_group.group_object_id]
   enable_defender       = var.enable_defender
   enable_workload_identity = var.enable_workload_identity
   enable_oidc_issuer    = var.enable_oidc_issuer
@@ -127,8 +134,10 @@ module "aks" {
   azure_policy_enabled      = var.azure_policy_enabled
   maintenance_window        = var.maintenance_window
   automatic_channel_upgrade = var.automatic_channel_upgrade
+  enable_managed_prometheus = var.enable_managed_prometheus
+  grafana_name             = var.grafana_name
 
-  # Log Analytics configuration - use the workspace ID from the module
+  # Log Analytics configuration
   log_analytics_workspace_id = module.log_analytics.workspace_id
 
   # Attach ACR
@@ -141,7 +150,31 @@ module "aks" {
     module.virtual_network,
     module.subnet,
     module.log_analytics,
-    module.acr
+    module.acr,
+    module.private_dns_zone
+  ]
+}
+
+# Grant admin role after cluster is created
+resource "azurerm_role_assignment" "aks_admin_group" {
+  scope                = module.aks.cluster_id
+  role_definition_name = "Azure Kubernetes Service Cluster Admin Role"
+  principal_id         = module.aks_admin_group.group_object_id
+  depends_on          = [module.aks]
+}
+
+module "bastion" {
+  source = "./modules/bastion"
+
+  name                = var.bastion_host_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  subnet_id           = module.subnet["AzureBastionSubnet"].subnet_id
+  tags                = var.tags
+
+  depends_on = [
+    module.virtual_network,
+    module.subnet
   ]
 }
 
