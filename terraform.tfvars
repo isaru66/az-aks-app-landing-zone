@@ -98,3 +98,8 @@ keyvault_network_acls = {
 # Storage Configuration
 storage_identity_type = "SystemAssigned"
 storage_user_assigned_identity_ids = []
+
+# ACR Configuration
+acr_name                   = "jmexampleacr001"
+acr_sku                    = "Premium"
+acr_public_access_enabled = false

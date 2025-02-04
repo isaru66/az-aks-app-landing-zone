@@ -131,12 +131,17 @@ module "aks" {
   # Log Analytics configuration - use the workspace ID from the module
   log_analytics_workspace_id = module.log_analytics.workspace_id
 
+  # Attach ACR
+  attach_acr = true
+  acr_id     = module.acr.acr_id
+
   tags = var.tags
 
   depends_on = [
     module.virtual_network,
     module.subnet,
-    module.log_analytics
+    module.log_analytics,
+    module.acr
   ]
 }
 
@@ -150,6 +155,21 @@ resource "azurerm_private_dns_zone_virtual_network_link" "keyvault" {
   name                  = "keyvault-link"
   resource_group_name   = azurerm_resource_group.this.name
   private_dns_zone_name = azurerm_private_dns_zone.keyvault.name
+  virtual_network_id    = module.virtual_network.virtual_network_id
+  registration_enabled  = false
+  tags                 = var.tags
+}
+
+resource "azurerm_private_dns_zone" "acr" {
+  name                = "privatelink.azurecr.io"
+  resource_group_name = azurerm_resource_group.this.name
+  tags               = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "acr" {
+  name                  = "acr-link"
+  resource_group_name   = azurerm_resource_group.this.name
+  private_dns_zone_name = azurerm_private_dns_zone.acr.name
   virtual_network_id    = module.virtual_network.virtual_network_id
   registration_enabled  = false
   tags                 = var.tags
@@ -172,6 +192,27 @@ module "key_vault" {
   depends_on = [
     azurerm_private_dns_zone.keyvault,
     azurerm_private_dns_zone_virtual_network_link.keyvault,
+    module.subnet
+  ]
+}
+
+module "acr" {
+  source = "./modules/acr"
+
+  name                = var.acr_name
+  resource_group_name = azurerm_resource_group.this.name
+  location           = var.location
+  sku               = var.acr_sku
+
+  public_network_access_enabled = var.acr_public_access_enabled
+  subnet_id                    = module.subnet["pe-subnet"].subnet_id
+  private_dns_zone_ids         = [azurerm_private_dns_zone.acr.id]
+
+  tags = var.tags
+
+  depends_on = [
+    azurerm_private_dns_zone.acr,
+    azurerm_private_dns_zone_virtual_network_link.acr,
     module.subnet
   ]
 }

@@ -273,3 +273,15 @@ variable "node_soak_duration_in_minutes" {
   type        = number
   default     = 10
 }
+
+variable "attach_acr" {
+  description = "Boolean flag to enable ACR attachment to AKS cluster"
+  type        = bool
+  default     = false
+}
+
+variable "acr_id" {
+  description = "ID of the Azure Container Registry to attach to the AKS cluster"
+  type        = string
+  default     = null
+}

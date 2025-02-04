@@ -55,3 +55,19 @@ output "aks_kubelet_identity" {
 #   description = "The name of the storage account for Terraform state"
 #   value       = azurerm_storage_account.tfstate.name
 # }
+
+# ACR outputs
+output "acr_id" {
+  description = "The ID of the Container Registry"
+  value       = module.acr.acr_id
+}
+
+output "acr_login_server" {
+  description = "The login server URL of the Container Registry"
+  value       = module.acr.acr_login_server
+}
+
+output "acr_private_endpoint_ip" {
+  description = "The private IP address of the ACR private endpoint"
+  value       = module.acr.private_endpoint_ip
+}

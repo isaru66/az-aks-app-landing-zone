@@ -294,7 +294,7 @@ variable "oms_agent_enabled" {
   default     = true
 }
 
-# Remove the log_analytics_workspace_id variable since it's created by the module
+// Remove the log_analytics_workspace_id variable since it's created by the module
 
 variable "log_analytics_workspace_name" {
   type        = string
@@ -360,4 +360,26 @@ variable "storage_user_assigned_identity_ids" {
   description = "List of user-assigned identity IDs for the storage account"
   type        = list(string)
   default     = []
+}
+
+# ACR Configuration
+variable "acr_name" {
+  description = "Name of the Azure Container Registry"
+  type        = string
+}
+
+variable "acr_sku" {
+  description = "SKU of the Azure Container Registry"
+  type        = string
+  default     = "Premium"
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.acr_sku)
+    error_message = "ACR SKU must be one of: Basic, Standard, Premium"
+  }
+}
+
+variable "acr_public_access_enabled" {
+  description = "Enable public network access for ACR"
+  type        = bool
+  default     = false
 }
