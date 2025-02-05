@@ -1,15 +1,14 @@
 # Azure Infrastructure with Terraform
 
-This repository contains Terraform configurations for deploying a production-grade Azure infrastructure with AKS and supporting resources.
+This repository contains Terraform configurations for deploying production-grade Azure infrastructure using the HashiCorp azurerm provider.
 
 ## Prerequisites
 
 - Terraform >= 1.0.0
 - Azure CLI >= 2.40.0
 - Azure subscription with required permissions
-- Azure AD admin group for AKS cluster administration
 - Git (for version control)
-- A code editor (VS Code recommended with Terraform extension)
+- VS Code with Terraform extension (recommended)
 
 ## Project Structure
 
@@ -19,179 +18,151 @@ This repository contains Terraform configurations for deploying a production-gra
 │   ├── aad_group/             # Azure AD Group management
 │   ├── acr/                   # Azure Container Registry
 │   ├── aks/                   # Azure Kubernetes Service
-│   ├── bastion/              # Azure Bastion Host
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+│   ├── bastion/               # Azure Bastion Host
+│   ├── keyvault/              # Azure Key Vault
+│   ├── log_analytics/         # Log Analytics Workspace
+│   ├── network_security_group/# Network Security Groups
+│   ├── private_dns_zone/      # Private DNS Zones
+│   ├── resource_group/        # Resource Groups
+│   ├── storage/               # Azure Storage Accounts
+│   ├── subnet/                # Subnet configurations
+│   └── virtual_network/       # Virtual Network
+├── main.tf                    # Main infrastructure configuration
+├── variables.tf               # Root module variable declarations
+├── terraform.tfvars          # Variable assignments
+├── providers.tf              # Provider configurations
+└── outputs.tf                # Output declarations
 ```
 
-### 2. Azure Authentication and Subscription Setup
-```bash
-# Login to Azure
-az login
+## Infrastructure Configuration Standards
 
-# List all subscriptions
-az account list --output table
-
-# Set your desired subscription
-az account set --subscription="SUBSCRIPTION_ID"
-
-# Verify current subscription
-az account show
+### Provider Version Management
+```hcl
+# Root module provider version constraint (in providers.tf)
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"  # Allows 3.x.x but not 4.0.0
+    }
+  }
+}
 ```
 
-### 3. Required Permissions and Credentials
-```bash
-# Get your user object ID (needed for some configurations)
-az ad signed-in-user show --query id -o tsv
+### Resource Naming Convention
+We follow Azure's recommended naming convention:
 
-# Create Azure AD Group for AKS Admins (if not exists)
-az ad group create --display-name "AKS-Cluster-Admins" --mail-nickname "aks-cluster-admins"
+- Resource Groups: `rg-<environment>-<region>-<workload>`
+- Virtual Networks: `vnet-<environment>-<region>-<workload>`
+- Subnets: `snet-<environment>-<purpose>`
+- AKS Clusters: `aks-<environment>-<region>-<workload>`
+- ACR: `acr<environment><workload>` (no hyphens allowed)
+- Key Vault: `kv-<environment>-<workload>`
+- Storage Account: `st<environment><workload>` (no hyphens allowed)
 
-# Get the Azure AD Group Object ID (for admin_group_object_ids)
-az ad group show --group "AKS-Cluster-Admins" --query id -o tsv
-
-# Assign required roles
-az role assignment add --assignee "AKS-Cluster-Admins" --role "Azure Kubernetes Service Cluster Admin Role"
+Example variables in terraform.tfvars:
+```hcl
+environment = "prod"
+region      = "eastus"
+workload    = "platform"
 ```
 
-### 4. Create Service Principal for Terraform (Optional but recommended)
-```bash
-# Create Service Principal
-SP_JSON=$(az ad sp create-for-rbac --name "terraform-sp" --role="Contributor" --scopes="/subscriptions/SUBSCRIPTION_ID")
+## Variable Management
 
-# Extract credentials
-CLIENT_ID=$(echo $SP_JSON | jq -r .appId)
-CLIENT_SECRET=$(echo $SP_JSON | jq -r .password)
-TENANT_ID=$(echo $SP_JSON | jq -r .tenant)
+### Root Module Variables
+Variables are declared in `variables.tf`:
+```hcl
+variable "environment" {
+  type        = string
+  description = "Environment name (e.g., prod, dev, staging)"
+}
 
-# Store these values securely - you'll need them for Terraform authentication
-echo "Client ID: $CLIENT_ID"
-echo "Client Secret: $CLIENT_SECRET"
-echo "Tenant ID: $TENANT_ID"
+variable "location" {
+  type        = string
+  description = "Azure region for resource deployment"
+}
 ```
 
-### 5. Configure Azure Storage for Terraform State
-```bash
-# Create Resource Group for state storage
-az group create --name terraform-state-rg --location eastus
+### Module Variables
+Each module contains its own `variables.tf` with clear type constraints and descriptions.
 
-# Create Storage Account (replace [UNIQUE] with a unique identifier)
-az storage account create \
-  --name tfstate[UNIQUE] \
-  --resource-group terraform-state-rg \
-  --sku Standard_LRS \
-  --encryption-services blob
+## Authentication and Initialization
 
-# Create Blob Container
-az storage container create \
-  --name tfstate \
-  --account-name tfstate[UNIQUE]
-
-# Get Storage Account Key
-ACCOUNT_KEY=$(az storage account keys list --resource-group terraform-state-rg --account-name tfstate[UNIQUE] --query '[0].value' -o tsv)
-```
-
-## Infrastructure Components
-
-- Resource Groups for logical resource organization
-- Virtual Network with custom subnet configuration
-- Network Security Groups with predefined security rules
-- Private AKS cluster with:
-  - Azure Linux (CBL-Mariner) as the node OS
-  - Azure CNI networking
-  - Azure network policy
-  - System and workload node pools with autoscaling
-  - Multi-zone deployment for high availability
-  - Workload Identity and OIDC support
-  - Microsoft Defender integration
-- Private DNS Zones for internal service communication
-
-## Module Structure
-
-```
-.
-├── modules/
-│   ├── aks/                    # Azure Kubernetes Service configuration
-│   ├── network_security_group/ # NSG rules and configurations
-│   ├── private_dns_zone/       # Private DNS zone settings
-│   ├── resource_group/         # Resource group management
-│   ├── subnet/                 # Subnet configurations
-│   └── virtual_network/        # VNet and networking setup
-├── main.tf                     # Main infrastructure configuration
-├── providers.tf                # Provider configuration
-├── variables.tf                # Input variables
-├── outputs.tf                  # Output values
-└── terraform.tfvars           # Variable values
-```
-
-## Getting Started
-
-1. Configure Azure authentication:
+1. Azure Authentication:
 ```bash
 az login
 az account set --subscription="SUBSCRIPTION_ID"
 ```
 
-2. Initialize the backend:
-```bash
-az group create --name terraform-state-rg --location eastus
-az storage account create --name tfstate[UNIQUE] --resource-group terraform-state-rg --sku Standard_LRS
-az storage container create --name tfstate --account-name tfstate[UNIQUE]
-```
-
-3. Initialize Terraform:
+2. Initialize Terraform:
 ```bash
 terraform init
 ```
 
-4. Update terraform.tfvars with required values:
-```hcl
-subscription_id             = "your-subscription-id"
-admin_group_object_ids     = ["aad-admin-group-id"]
-private_dns_zone_id        = "dns-zone-resource-id"
-log_analytics_workspace_id = "workspace-resource-id"
-```
-
-5. Deploy the infrastructure:
+3. Deploy Infrastructure:
 ```bash
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
+## Module Usage Examples
+
+### Resource Group Module
+```hcl
+module "resource_group" {
+  source = "./modules/resource_group"
+
+  name     = "rg-${var.environment}-${var.location}-${var.workload}"
+  location = var.location
+  tags     = var.tags
+}
+```
+
+### Virtual Network Module
+```hcl
+module "virtual_network" {
+  source = "./modules/virtual_network"
+
+  name                = "vnet-${var.environment}-${var.location}-${var.workload}"
+  resource_group_name = module.resource_group.name
+  location            = var.location
+  address_space       = ["10.0.0.0/16"]
+}
+```
+
+## Security Best Practices
+
+- All resources are deployed with private endpoints where applicable
+- Network security groups with strict inbound/outbound rules
+- Key Vault access policies using Azure AD authentication
+- RBAC enabled on all resources
+- Network isolation using subnets and NSGs
+- Regular secret rotation using Key Vault
+- Encryption at rest enabled for all supported resources
+
 ## State Management
 
-- State is stored in Azure Storage
-- Implements state locking
-- Enables team collaboration
-- Supports state versioning
+State is stored in Azure Storage with the following features:
+- State locking to prevent concurrent modifications
+- Encryption at rest
+- Access control via Azure AD
+- Versioning enabled for rollback capability
 
-## Security Features
+## Output Values
 
-- Private cluster deployment
-- Azure AD RBAC integration
-- Network security groups with strict rules
-- Private endpoints for Azure services
-- Microsoft Defender for Containers enabled
-- Workload Identity support
-- OIDC issuer configuration
-
-## Best Practices Implemented
-
-- Consistent resource naming
-- Proper tagging strategy
-- Module versioning
-- Provider version constraints
-- Resource grouping by purpose
-- Network segregation
-- Automated scaling configurations
-- Proper access controls
+Relevant resource information is exposed through outputs.tf, including:
+- Resource IDs
+- Resource names
+- Connection strings (stored in Key Vault)
+- API endpoints
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+3. Make your changes following the established conventions
+4. Update documentation as needed
+5. Submit a pull request
 
 ## License
 
