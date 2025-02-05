@@ -1,41 +1,39 @@
 resource "azurerm_storage_account" "storage" {
-  name                          = var.storage_account_name
-  resource_group_name          = var.resource_group_name
-  location                     = var.location
-  account_tier                 = "Standard"
-  account_replication_type     = "GRS"
-  min_tls_version             = "TLS1_2"
-  public_network_access_enabled = false
-
+  name                             = var.storage_account_name
+  resource_group_name             = var.resource_group_name
+  location                        = var.location
+  account_tier                    = "Standard"
+  account_replication_type        = "ZRS"  # Zone-redundant storage for production
+  min_tls_version                = "TLS1_2"
+  public_network_access_enabled   = false
   infrastructure_encryption_enabled = true
-  
-  queue_encryption_key_type    = "Service"
-  table_encryption_key_type    = "Service"
+  allow_nested_items_to_be_public = false
 
   network_rules {
     default_action = "Deny"
     bypass         = ["AzureServices"]
+    ip_rules       = []
+    virtual_network_subnet_ids = []
   }
 
   blob_properties {
     container_delete_retention_policy {
-      days = 7
+      days = 30  # Increased retention for production
     }
     delete_retention_policy {
-      days = 7
+      days = 30
     }
+    versioning_enabled = true
   }
 
   identity {
-    type         = var.identity_type
-    identity_ids = var.identity_type == "UserAssigned" || var.identity_type == "SystemAssigned, UserAssigned" ? var.user_assigned_identity_ids : null
+    type = "SystemAssigned"
   }
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-  })
+  tags = var.tags
 }
 
+# Private endpoint for secure access
 resource "azurerm_private_endpoint" "storage_pe" {
   name                = "${var.storage_account_name}-pe"
   location            = var.location
@@ -56,3 +54,42 @@ resource "azurerm_private_endpoint" "storage_pe" {
 
   tags = var.tags
 }
+
+# RBAC for blob data access
+resource "azurerm_role_assignment" "storage_blob_data_owner" {
+  scope                = azurerm_storage_account.storage.id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = var.principal_id
+}
+
+# Diagnostic settings
+resource "azurerm_monitor_diagnostic_setting" "storage" {
+  name                       = "${var.storage_account_name}-diagnostics"
+  target_resource_id         = azurerm_storage_account.storage.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  metric {
+    category = "Transaction"
+    enabled  = true
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "blob_diagnostic" {
+  name                       = "${var.storage_account_name}-blob-diagnostics"
+  target_resource_id         = "${azurerm_storage_account.storage.id}/blobServices/default"
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "audit"
+  }
+
+  enabled_log {
+    category_group = "allLogs"
+  }
+
+  metric {
+    category = "Transaction"
+    enabled  = true
+  }
+}
+

@@ -1,3 +1,9 @@
+resource "random_string" "storage_account_suffix" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
 resource "azurerm_resource_group" "this" {
   name     = var.resource_group_name
   location = var.location
@@ -47,22 +53,21 @@ module "private_dns_zone" {
 
 module "storage" {
   source              = "./modules/storage"
-  storage_account_name = lower(replace("${var.resource_group_name}storage", "-", ""))
+  storage_account_name = "st${var.environment}${random_string.storage_account_suffix.result}"
   resource_group_name = azurerm_resource_group.this.name
   location           = azurerm_resource_group.this.location
   environment        = var.environment
   subnet_id          = module.subnet["pe-subnet"].subnet_id
   private_dns_zone_id = module.private_dns_zone.private_dns_zone_id
-  
-  identity_type              = var.storage_identity_type
-  user_assigned_identity_ids = var.storage_user_assigned_identity_ids
-  
+  principal_id       = module.storage_access_group.group_object_id
+  log_analytics_workspace_id = module.log_analytics.workspace_id
   tags = var.tags
 
   depends_on = [
     module.virtual_network,
     module.subnet,
-    module.private_dns_zone
+    module.private_dns_zone,
+    module.log_analytics
   ]
 }
 
@@ -81,6 +86,13 @@ module "aks_admin_group" {
   source = "./modules/aad_group"
   group_name  = "${var.aks_cluster_name}-admins"
   description = "AKS cluster administrators for ${var.aks_cluster_name}"
+}
+
+# Azure AD Group for Storage Account Access
+module "storage_access_group" {
+  source      = "./modules/aad_group"
+  group_name  = "storage-access-group"
+  description = "Group for storage account access"
 }
 
 module "aks" {

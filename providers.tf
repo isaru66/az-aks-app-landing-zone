@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 4.17.0"  // Pinning to specific minor version for stability
     }
     random = {
       source  = "hashicorp/random"
@@ -25,11 +25,5 @@ provider "azurerm" {
     }
   }
   subscription_id = "16ae6f44-2b54-4372-9d8c-54c8431ad26d"
-}
-
-# Keep random string for future use
-resource "random_string" "storage_account_suffix" {
-  length  = 8
-  special = false
-  upper   = false
+  use_oidc       = true
 }

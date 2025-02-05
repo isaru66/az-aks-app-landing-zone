@@ -118,7 +118,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   dns_prefix                = var.cluster_name
   kubernetes_version        = var.kubernetes_version
   sku_tier                  = var.sku_tier
-  automatic_channel_upgrade = var.automatic_channel_upgrade
+  automatic_upgrade_channel = var.automatic_channel_upgrade
   
   private_cluster_enabled = var.private_cluster_enabled
   private_dns_zone_id    = var.private_dns_zone_id
@@ -126,16 +126,15 @@ resource "azurerm_kubernetes_cluster" "this" {
   role_based_access_control_enabled = true
   
   azure_active_directory_role_based_access_control {
-    managed         = true
-    azure_rbac_enabled = true
-    tenant_id       = data.azurerm_client_config.current.tenant_id
-    admin_group_object_ids = []  # Empty list since we're using azure_rbac_enabled
+    azure_rbac_enabled    = true
+    tenant_id             = data.azurerm_client_config.current.tenant_id
+    admin_group_object_ids = var.admin_group_object_ids
   }
   
   default_node_pool {
     name                = var.system_node_pool_name
     vm_size             = var.system_node_pool_vm_size
-    enable_auto_scaling = true
+    auto_scaling_enabled = true
     node_count          = null  # Must be null when enable_auto_scaling is true
     max_count           = var.system_node_pool_max_count
     min_count           = var.system_node_pool_min_count
@@ -172,13 +171,13 @@ resource "azurerm_kubernetes_cluster" "this" {
   }
 
   network_profile {
-    network_plugin      = var.network_plugin
-    network_policy      = var.network_policy
-    network_plugin_mode = null  # Removing overlay mode
-    service_cidr        = var.service_cidr
-    dns_service_ip      = var.dns_service_ip
-    # Removing pod_cidr as it's not compatible with basic Azure CNI
-    load_balancer_sku  = "standard"
+    network_plugin           = var.network_plugin
+    network_policy          = var.network_policy
+    network_plugin_mode     = var.network_plugin == "azure" ? "overlay" : null
+    service_cidr           = var.service_cidr
+    dns_service_ip         = var.dns_service_ip
+    load_balancer_sku     = "standard"
+    outbound_type         = "loadBalancer"
   }
 
   oms_agent {
@@ -261,13 +260,17 @@ resource "azurerm_monitor_diagnostic_setting" "aks_diagnostic_setting" {
     category = "AllMetrics"
     enabled  = true
   }
+
+  lifecycle {
+    ignore_changes = [name]
+  }
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "work" {
   name                  = var.work_node_pool_name
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
   vm_size              = var.work_node_pool_vm_size
-  enable_auto_scaling  = true
+  auto_scaling_enabled  = true
   node_count           = null  # Must be null when enable_auto_scaling is true
   max_count            = var.work_node_pool_max_count
   min_count            = var.work_node_pool_min_count

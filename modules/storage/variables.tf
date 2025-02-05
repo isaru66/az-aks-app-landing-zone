@@ -1,47 +1,45 @@
+variable "storage_account_name" {
+  description = "Name of the storage account"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "Name of the resource group"
   type        = string
 }
 
 variable "location" {
-  description = "Azure region"
-  type        = string
-}
-
-variable "storage_account_name" {
-  description = "Name of the storage account"
-  type        = string
-}
-
-variable "environment" {
-  description = "Environment name for the resources"
+  description = "Azure region where the storage account will be created"
   type        = string
 }
 
 variable "subnet_id" {
-  description = "Subnet ID for private endpoint"
+  description = "Subnet ID for the private endpoint"
   type        = string
 }
 
 variable "private_dns_zone_id" {
-  description = "ID of the existing private DNS zone for blob storage"
+  description = "Private DNS zone ID for the private endpoint"
   type        = string
 }
 
-variable "identity_type" {
-  description = "Type of identity (SystemAssigned, UserAssigned, SystemAssigned, UserAssigned)"
+variable "principal_id" {
+  description = "Principal ID (object ID) of the identity that needs blob data access"
   type        = string
-  default     = "SystemAssigned"
 }
 
-variable "user_assigned_identity_ids" {
-  description = "List of user-assigned identity IDs"
-  type        = list(string)
-  default     = []
+variable "log_analytics_workspace_id" {
+  description = "Log Analytics workspace ID for diagnostic settings"
+  type        = string
 }
 
 variable "tags" {
-  description = "Tags to apply to resources"
+  description = "Tags to be applied to the storage account"
   type        = map(string)
   default     = {}
+}
+
+variable "environment" {
+  description = "Environment name used for resource naming and tagging"
+  type        = string
 }

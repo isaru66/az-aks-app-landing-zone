@@ -11,11 +11,11 @@ tags = {
 }
 
 # Network Configuration
-virtual_network_name          = "jm-example-vnet"
-address_space                 = ["10.0.0.0/16"]
-network_security_group_name   = "jm-example-nsg"
-subnet_name                   = "default-subnet"
-subnet_prefix                 = "10.0.1.0/24"
+virtual_network_name        = "jm-example-vnet"
+address_space              = ["10.0.0.0/16"]
+network_security_group_name = "jm-example-nsg"
+subnet_name                = "default-subnet"
+subnet_prefix              = "10.0.1.0/24"
 subnets = {
   aks = {
     name           = "aks-subnet"
@@ -26,29 +26,29 @@ subnets = {
     address_prefix = "10.0.8.0/24"
   }
   AzureBastionSubnet = {
-    name           = "AzureBastionSubnet"  # This name is required by Azure
+    name           = "AzureBastionSubnet"
     address_prefix = "10.0.9.0/24"
   }
 }
 
 # AKS Configuration
-aks_cluster_name          = "jm-example-aks"
-kubernetes_version        = "1.28.3"
-network_plugin           = "azure"
-network_policy           = "azure"
-dns_service_ip          = "172.16.0.10"
-service_cidr            = "172.16.0.0/16"
-private_cluster_enabled = true
-sku_tier                = "Standard"
+aks_cluster_name           = "jmexampleaks"  # Changed to meet Azure naming restrictions
+kubernetes_version         = "1.28.3"
+network_plugin            = "azure"
+network_policy            = "azure"
+dns_service_ip           = "172.16.0.10"
+service_cidr             = "172.16.0.0/16"
+private_cluster_enabled  = true
+sku_tier                 = "Standard"
 automatic_channel_upgrade = "stable"
 
 # Security Configuration
-admin_group_object_ids = []  # This will be populated automatically by the aks_admin_group module
+admin_group_object_ids    = []
 enable_defender          = true
 enable_workload_identity = true
-enable_oidc_issuer       = true
-identity_type            = "UserAssigned"
-azure_policy_enabled     = true
+enable_oidc_issuer      = true
+identity_type           = "UserAssigned"
+azure_policy_enabled    = true
 
 # Node Pools Configuration
 system_node_pool_name                = "system"
@@ -59,18 +59,18 @@ system_node_pool_max_count          = 4
 system_node_pool_os_disk_size_gb    = 128
 system_node_pool_zones              = ["1", "3"]
 
-work_node_pool_name                 = "jmworkload"
-work_node_pool_vm_size             = "Standard_D2ds_v4"
-work_node_pool_enable_auto_scaling  = true
-work_node_pool_min_count           = 2
-work_node_pool_max_count           = 6
-work_node_pool_os_disk_size_gb     = 256
-work_node_pool_zones               = ["1", "3"]
+work_node_pool_name                = "jmworkload"
+work_node_pool_vm_size            = "Standard_D2ds_v4"
+work_node_pool_enable_auto_scaling = true
+work_node_pool_min_count          = 2
+work_node_pool_max_count          = 6
+work_node_pool_os_disk_size_gb    = 256
+work_node_pool_zones              = ["1", "3"]
 
 # Monitoring Configuration
-log_analytics_workspace_name = "aks-monitoring-workspace"
-log_analytics_workspace_sku = "PerGB2018"
-log_analytics_retention_days = 30
+log_analytics_workspace_name    = "aks-monitoring-workspace"
+log_analytics_workspace_sku     = "PerGB2018"
+log_analytics_retention_days    = 30
 
 # Maintenance Configuration
 maintenance_window = {
@@ -99,17 +99,16 @@ keyvault_network_acls = {
 }
 
 # Storage Configuration
-storage_identity_type = "SystemAssigned"
-storage_user_assigned_identity_ids = []
+storage_account_name = "stprodrku6kz5u"
 
 # ACR Configuration
-acr_name                   = "jmexampleacr001"
-acr_sku                    = "Premium"
+acr_name                  = "jmexampleacr001"
+acr_sku                   = "Premium"
 acr_public_access_enabled = false
 
 # Managed Prometheus and Grafana Configuration
 enable_managed_prometheus = true
-grafana_name             = "aks-grafana"  # Replace with your desired Grafana instance name
+grafana_name             = "jm-grafana"  # Changed to follow consistent naming convention
 
 # Bastion Configuration
 bastion_host_name = "jm-bastion"

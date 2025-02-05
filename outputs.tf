@@ -50,12 +50,6 @@ output "aks_kubelet_identity" {
   value       = module.aks.kubelet_identity
 }
 
-# Remove or comment out this output since we're not using state storage
-# output "terraform_state_storage_account" {
-#   description = "The name of the storage account for Terraform state"
-#   value       = azurerm_storage_account.tfstate.name
-# }
-
 # ACR outputs
 output "acr_id" {
   description = "The ID of the Container Registry"

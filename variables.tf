@@ -351,38 +351,23 @@ variable "keyvault_network_acls" {
   })
 }
 
-variable "storage_identity_type" {
-  description = "Type of identity for the storage account"
+variable "storage_account_name" {
+  description = "Name of the storage account"
   type        = string
-  default     = "SystemAssigned"
-}
-
-variable "storage_user_assigned_identity_ids" {
-  description = "List of user-assigned identity IDs for the storage account"
-  type        = list(string)
-  default     = []
-}
-
-# ACR Configuration
-variable "acr_name" {
-  description = "Name of the Azure Container Registry"
-  type        = string
-}
-
-variable "acr_sku" {
-  description = "SKU of the Azure Container Registry"
-  type        = string
-  default     = "Premium"
   validation {
-    condition     = contains(["Basic", "Standard", "Premium"], var.acr_sku)
-    error_message = "ACR SKU must be one of: Basic, Standard, Premium"
+    condition     = can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
+    error_message = "Storage account name must be between 3 and 24 characters long and can only contain lowercase letters and numbers"
   }
 }
 
-variable "acr_public_access_enabled" {
-  description = "Enable public network access for ACR"
-  type        = bool
-  default     = false
+variable "container_name" {
+  description = "Name of the storage container"
+  type        = string
+  default     = "documents"
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", var.container_name))
+    error_message = "Container name must be between 3 and 63 characters, start with letter or number, and can only contain lowercase letters, numbers, and hyphens"
+  }
 }
 
 variable "grafana_name" {
@@ -402,4 +387,47 @@ variable "bastion_host_name" {
     condition     = can(regex("^[a-zA-Z0-9-]{1,80}$", var.bastion_host_name))
     error_message = "Bastion host name must be between 1 and 80 characters, containing alphanumeric characters and hyphens"
   }
+}
+
+variable "enable_versioning" {
+  description = "Enable blob versioning for the storage account"
+  type        = bool
+  default     = true
+}
+
+variable "container_soft_delete_retention" {
+  description = "Number of days to retain deleted container"
+  type        = number
+  default     = 7
+}
+
+variable "blob_soft_delete_retention" {
+  description = "Number of days to retain deleted blobs"
+  type        = number
+  default     = 7
+}
+
+variable "acr_name" {
+  description = "Name of the Azure Container Registry"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9]{5,50}$", var.acr_name))
+    error_message = "ACR name must be 5-50 characters long and can only contain alphanumeric characters"
+  }
+}
+
+variable "acr_sku" {
+  description = "SKU of the Azure Container Registry"
+  type        = string
+  default     = "Premium"
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.acr_sku)
+    error_message = "ACR SKU must be one of: Basic, Standard, or Premium"
+  }
+}
+
+variable "acr_public_access_enabled" {
+  description = "Whether to enable public access for the Azure Container Registry"
+  type        = bool
+  default     = false
 }

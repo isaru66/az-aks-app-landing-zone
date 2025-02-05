@@ -1,10 +1,19 @@
+# Create a random suffix for uniqueness
+resource "random_string" "acr_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+# Use the random suffix in ACR name
 resource "azurerm_container_registry" "acr" {
-  name                          = var.name
+  name                          = "acr${random_string.acr_suffix.result}"
   resource_group_name          = var.resource_group_name
   location                     = var.location
   sku                         = var.sku
-  admin_enabled               = var.admin_enabled
-  public_network_access_enabled = var.public_network_access_enabled
+  admin_enabled               = false
+  public_network_access_enabled = false
+  zone_redundancy_enabled     = true
   
   identity {
     type = "SystemAssigned"
@@ -12,6 +21,7 @@ resource "azurerm_container_registry" "acr" {
 
   network_rule_set {
     default_action = "Deny"
+    ip_rule        = []
   }
 
   tags = var.tags
