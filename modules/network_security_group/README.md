@@ -1,17 +1,30 @@
-# Network Security Group (NSG) Module
+# Azure Network Security Group Module
 
-A Terraform module for creating and managing Azure Network Security Groups with comprehensive security rules.
+This module deploys Network Security Groups (NSGs) with pre-configured security rules for enterprise environments.
 
 ## Features
 
-- Flexible security rule configuration
-- Support for service tags
-- Application security group integration
-- Priority-based rule management
-- Source/destination filtering
-- Protocol and port management
-- Statefull packet inspection
-- Azure Policy integration ready
+### Security Rules
+- Tiered security model
+- Application-specific rules
+- Service tag support
+- Priority-based processing
+- Deny by default
+- Protocol restrictions
+
+### Management
+- Rule documentation
+- ASG integration
+- Flow logging
+- Traffic analytics
+- Rule auditing
+
+### Monitoring
+- Diagnostic settings
+- Security insights
+- Rule hit counting
+- Threat detection
+- Compliance reporting
 
 ## Usage
 
@@ -19,77 +32,57 @@ A Terraform module for creating and managing Azure Network Security Groups with 
 module "nsg" {
   source = "./modules/network_security_group"
 
-  nsg_name            = "aks-subnet-nsg"
+  name                = "aks-subnet-nsg"
   resource_group_name = module.resource_group.name
-  location           = "eastus"
+  location           = "eastus2"
 
   security_rules = [
     {
-      name                         = "allow_aks_api"
-      priority                     = 100
-      direction                   = "Inbound"
-      access                      = "Allow"
-      protocol                    = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "443"
-      source_address_prefix      = "AzureCloud"
+      name                       = "allow_tls"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                    = "Allow"
+      protocol                  = "Tcp"
+      source_port_range         = "*"
+      destination_port_range    = "443"
+      source_address_prefix     = "VirtualNetwork"
       destination_address_prefix = "VirtualNetwork"
-      description                = "Allow AKS API Server access"
     },
     {
-      name                         = "deny_all_inbound"
-      priority                     = 4096
-      direction                   = "Inbound"
-      access                      = "Deny"
-      protocol                    = "*"
-      source_port_range          = "*"
-      destination_port_range     = "*"
-      source_address_prefix      = "*"
+      name                       = "deny_all_inbound"
+      priority                   = 4096
+      direction                  = "Inbound"
+      access                    = "Deny"
+      protocol                  = "*"
+      source_port_range         = "*"
+      destination_port_range    = "*"
+      source_address_prefix     = "*"
       destination_address_prefix = "*"
-      description                = "Deny all inbound traffic"
     }
   ]
 
   tags = {
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    Project     = "Core Infrastructure"
   }
 }
 ```
 
-## Requirements
-
-| Name | Version |
-|------|---------|
-| terraform | >= 1.0.0 |
-| azurerm | ~> 3.0 |
+## Required Resources
+- Resource Group
+- Log Analytics workspace for diagnostics
+- Network Watcher for flow logs
 
 ## Variables
 
 | Name | Description | Type | Required | Default |
 |------|-------------|------|----------|---------|
-| nsg_name | Name of the NSG | string | yes | - |
+| name | NSG name | string | yes | - |
 | resource_group_name | Resource group name | string | yes | - |
 | location | Azure region | string | yes | - |
-| security_rules | List of security rules | list(object) | no | [] |
+| security_rules | List of security rules | list(map) | no | [] |
+| flow_log_enabled | Enable NSG flow logs | bool | no | true |
 | tags | Resource tags | map(string) | no | {} |
-
-### Security Rule Object Structure
-
-```hcl
-object({
-  name                         = string
-  priority                     = number
-  direction                   = string
-  access                      = string
-  protocol                    = string
-  source_port_range          = string
-  destination_port_range     = string
-  source_address_prefix      = string
-  destination_address_prefix = string
-  description                = string
-})
-```
 
 ## Outputs
 
@@ -97,44 +90,28 @@ object({
 |------|-------------|
 | nsg_id | The NSG resource ID |
 | nsg_name | The name of the NSG |
-| security_rules | List of configured security rules |
+| security_rules | List of security rules |
 
 ## Best Practices
+1. Follow least privilege principle
+2. Document all rules
+3. Use service tags where possible
+4. Enable flow logging
+5. Regular rule review
+6. Monitor denied traffic
+7. Keep rules organized
+8. Use meaningful priorities
 
-### Rule Priority
-- Use priorities 100-499 for allow rules
-- Use priorities 500-4096 for deny rules
-- Leave gaps between rules for future insertions
+## Related Modules
+- `virtual_network` - For network configuration
+- `subnet` - For subnet association
+- `log_analytics` - For monitoring
+- `bastion` - For secure access rules
 
-### Service Tags
-Utilize Azure service tags for better maintainability:
-- AzureCloud
-- VirtualNetwork
-- Internet
-- AzureLoadBalancer
-- AzureTrafficManager
-
-### Security Considerations
-- Implement least-privilege access
-- Use specific port ranges instead of wildcards
-- Document rule purposes using descriptions
-- Regular audit of security rules
-
-## Common Configurations
-
-### AKS Cluster Security Rules
-```hcl
-security_rules = [
-  {
-    name                         = "allow_aks_api"
-    priority                     = 100
-    direction                   = "Inbound"
-    access                      = "Allow"
-    protocol                    = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "443"
-    source_address_prefix      = "AzureCloud"
-    destination_address_prefix = "VirtualNetwork"
-  }
-]
-```
+## Notes
+- Rules process in priority order
+- Document all rule changes
+- Regular security audits
+- Monitor rule effectiveness
+- Consider compliance requirements
+- Plan rule capacity
