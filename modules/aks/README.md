@@ -1,6 +1,6 @@
 # Azure Kubernetes Service (AKS) Module
 
-This module deploys a production-ready Azure Kubernetes Service cluster with security and operational best practices.
+A comprehensive Terraform module for deploying production-ready Azure Kubernetes Service clusters with best practices.
 
 ## Prerequisites and Setup
 
@@ -57,29 +57,15 @@ az provider register --namespace Microsoft.ContainerService
 
 ## Features
 
-### Security Features
-- Private cluster deployment
+- Private cluster deployment with Azure CNI networking
+- Multi-availability zone system and user node pools
+- Autoscaling configuration with optimization profiles
 - Azure AD RBAC integration
-- Network policies enabled
-- Microsoft Defender for Containers
-- Workload Identity support
-- OIDC issuer enabled
-- Azure CNI networking
-- Host encryption enabled
-
-### High Availability
-- Multi-zone deployment
-- Multiple node pools
-- Auto-scaling enabled
-- Regular automatic upgrades
-- Backup for cluster state
-
-### Monitoring and Operations
-- Azure Monitor integration
-- Container insights
-- Diagnostic settings
-- Prometheus metrics collection
-- Azure Policy integration
+- Microsoft Defender for Containers integration
+- Azure Monitor integration with Log Analytics
+- Workload Identity and OIDC support
+- Maintenance window configuration
+- Azure Linux (CBL-Mariner) node OS
 
 ## Usage
 
@@ -87,41 +73,49 @@ az provider register --namespace Microsoft.ContainerService
 module "aks" {
   source = "./modules/aks"
 
-  cluster_name           = "prod-aks"
-  resource_group_name    = module.resource_group.name
-  location              = "eastus2"
-  kubernetes_version    = "1.26.0"
-  vnet_subnet_id        = module.subnet.id
-  admin_group_object_ids = ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+  # Core Configuration
+  cluster_name         = "prod-aks-cluster"
+  location            = "eastus"
+  resource_group_name = module.resource_group.name
+  kubernetes_version  = "1.26"
 
-  default_node_pool = {
-    name                = "system"
-    node_count         = 3
-    vm_size            = "Standard_D4s_v3"
-    availability_zones = [1, 2, 3]
-    max_pods           = 30
+  # Node Pool Configuration
+  system_node_pool = {
+    name         = "system"
+    vm_size      = "Standard_D4s_v3"
+    min_count    = 1
+    max_count    = 3
+    zones        = [1, 2, 3]
+    node_labels  = { "role" = "system" }
+    node_taints  = ["CriticalAddonsOnly=true:NoSchedule"]
   }
 
   user_node_pool = {
-    name                = "user"
-    node_count         = 3
-    vm_size            = "Standard_D8s_v3"
-    availability_zones = [1, 2, 3]
-    max_pods           = 30
+    name         = "user"
+    vm_size      = "Standard_D4s_v3"
+    min_count    = 1
+    max_count    = 5
+    zones        = [1, 2, 3]
+    node_labels  = { "role" = "user" }
   }
+
+  # Networking
+  vnet_subnet_id = module.subnet.id
+  network_plugin = "azure"
+  network_policy = "azure"
+  
+  # Identity and Security
+  admin_group_object_ids = ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+  
+  # Monitoring
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.aks.id
 
   tags = {
     Environment = "Production"
-    Project     = "Core Infrastructure"
+    ManagedBy   = "Terraform"
   }
 }
 ```
-
-## Required Resources
-- Virtual Network with dedicated subnet
-- Azure AD admin group
-- Log Analytics workspace
-- ACR (optional, for container registry)
 
 ## Requirements
 
@@ -134,15 +128,15 @@ module "aks" {
 
 | Name | Description | Type | Required | Default |
 |------|-------------|------|----------|---------|
-| cluster_name | Name of the AKS cluster | string | yes | - |
+| cluster_name | The name of the AKS cluster | string | yes | - |
+| location | Azure region for the cluster | string | yes | - |
 | resource_group_name | Name of the resource group | string | yes | - |
-| location | Azure region for deployment | string | yes | - |
 | kubernetes_version | Kubernetes version | string | yes | - |
-| vnet_subnet_id | Subnet ID for AKS | string | yes | - |
-| admin_group_object_ids | Azure AD admin group IDs | list(string) | yes | - |
-| default_node_pool | System node pool configuration | map | no | See defaults |
-| user_node_pool | User node pool configuration | map | no | See defaults |
-| acr_id | ACR ID for pull access | string | no | null |
+| vnet_subnet_id | Subnet ID for CNI networking | string | yes | - |
+| admin_group_object_ids | AAD group IDs for admin access | list(string) | yes | - |
+| system_node_pool | System node pool configuration | map(any) | yes | {} |
+| user_node_pool | User node pool configuration | map(any) | yes | {} |
+| log_analytics_workspace_id | Log Analytics Workspace ID | string | yes | - |
 | tags | Resource tags | map(string) | no | {} |
 
 ## Outputs
@@ -150,29 +144,36 @@ module "aks" {
 | Name | Description |
 |------|-------------|
 | cluster_id | The AKS cluster ID |
-| kubelet_identity | The Kubelet identity |
-| cluster_fqdn | FQDN of cluster control plane |
-| node_resource_group | Auto-generated node resource group name |
+| cluster_fqdn | The FQDN of the AKS cluster |
+| kube_config | Kubeconfig credentials |
+| cluster_identity | The system-assigned identity |
+| kubelet_identity | The kubelet identity |
 
-## Best Practices
-1. Always use private clusters in production
-2. Enable multi-zone deployment for HA
-3. Separate system and user workloads
-4. Regular cluster upgrades
-5. Monitor cluster metrics
-6. Use Azure Policy for governance
-7. Implement proper backup strategy
-8. Configure network policies
+## Advanced Features
 
-## Related Modules
-- `virtual_network` - For network configuration
-- `log_analytics` - For monitoring
-- `acr` - For container registry
-- `private_dns_zone` - For private cluster DNS
+### Node Pool Autoscaling
+The module configures optimized autoscaling profiles:
+- Balanced node distribution
+- Fast scale-down for cost optimization
+- System pod protection
+- Local storage handling
+
+### Security Features
+- Private cluster endpoints
+- Azure AD RBAC integration
+- Network policies
+- Microsoft Defender integration
+- Workload Identity
+
+### Monitoring and Diagnostics
+- Azure Monitor integration
+- Log Analytics integration
+- Custom diagnostic settings
+- Metric collection
 
 ## Notes
-- Ensure subnet has enough IP addresses for pods
-- Plan maintenance windows for upgrades
-- Review security and compliance requirements
-- Monitor node resource usage
-- Regular security patches
+
+- The cluster uses Azure CNI networking for advanced networking features
+- System node pool is tainted for system workloads only
+- Multi-zone deployment ensures high availability
+- Workload Identity requires Azure AD integration

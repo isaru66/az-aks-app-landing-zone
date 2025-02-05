@@ -1,7 +1,5 @@
 # Azure Container Registry (ACR) Module
 
-This module deploys an Azure Container Registry with enterprise-grade security and replication features.
-
 ## Prerequisites and Setup
 
 ### 1. Required Role Assignments
@@ -64,28 +62,13 @@ az acr network-rule add \
 
 ## Features
 
-### Security Features
-- Private endpoint access
-- Admin account disabled
-- Azure AD authentication
-- Network rules configured
-- Content trust enabled
-- Vulnerability scanning
-- Customer-managed keys support
-
-### High Availability
-- Geo-replication support
-- Zone redundancy
-- Premium SKU features
-- Auto-scaling enabled
-- Image retention policies
-
-### Operations
-- Webhook support
-- Task automation
-- Image pruning
-- Quarantine policy
-- OCI artifact support
+- Premium tier ACR with enhanced security features
+- Private endpoint integration
+- Managed identity support
+- Network access restrictions
+- RBAC integration
+- Diagnostic settings support
+- Geo-replication ready
 
 ## Usage
 
@@ -93,37 +76,30 @@ az acr network-rule add \
 module "acr" {
   source = "./modules/acr"
 
-  name                = "prodacr"
+  name                = "myacrpremium"
   resource_group_name = module.resource_group.name
-  location           = "eastus2"
+  location           = "eastus"
   sku               = "Premium"
-  subnet_id          = module.subnet.id
-  private_dns_zone_id = module.dns.private_dns_zone_id
-
-  georeplications = [
-    {
-      location = "westus2"
-      zone_redundancy_enabled = true
-    }
-  ]
-
-  retention_policy = {
-    days    = 30
-    enabled = true
-  }
+  
+  public_network_access_enabled = false
+  subnet_id                    = module.subnet["pe-subnet"].id
+  private_dns_zone_ids         = [azurerm_private_dns_zone.acr.id]
 
   tags = {
     Environment = "Production"
-    Project     = "Core Infrastructure"
+    ManagedBy   = "Terraform"
   }
 }
-```
 
-## Required Resources
-- Virtual Network with subnet for private endpoint
-- Private DNS zone for ACR
-- Log Analytics workspace for diagnostics
-- AKS cluster (optional, for integration)
+# Grant AKS access to ACR
+module "aks" {
+  source = "./modules/aks"
+  # ... other AKS configuration ...
+  
+  attach_acr = true
+  acr_id     = module.acr.acr_id
+}
+```
 
 ## Requirements
 
@@ -139,42 +115,42 @@ module "acr" {
 | name | Registry name | string | yes | - |
 | resource_group_name | Resource group name | string | yes | - |
 | location | Azure region | string | yes | - |
-| sku | SKU (Basic/Standard/Premium) | string | no | "Premium" |
+| sku | SKU (Basic, Standard, Premium) | string | no | "Premium" |
+| admin_enabled | Enable admin user | bool | no | false |
+| public_network_access_enabled | Enable public access | bool | no | false |
 | subnet_id | Subnet ID for private endpoint | string | yes | - |
-| private_dns_zone_id | Private DNS zone ID | string | yes | - |
-| georeplications | Replication configurations | list(map) | no | [] |
-| retention_policy | Image retention policy | map | no | null |
+| private_dns_zone_ids | DNS zone IDs for private endpoint | list(string) | yes | - |
 | tags | Resource tags | map(string) | no | {} |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| registry_id | The ACR resource ID |
-| login_server | The ACR login server URL |
-| admin_username | Admin username (if enabled) |
+| acr_id | The ACR resource ID |
+| acr_name | The name of the ACR |
+| acr_login_server | The ACR login server URL |
+| principal_id | The principal ID of system-assigned identity |
 | private_endpoint_ip | Private endpoint IP address |
 
 ## Best Practices
-1. Use Premium SKU for production
-2. Enable geo-replication for HA
-3. Configure retention policies
-4. Regular vulnerability scanning
-5. Implement image signing
-6. Monitor storage usage
-7. Use CI/CD integration
-8. Regular access review
 
-## Related Modules
-- `aks` - For Kubernetes integration
-- `private_dns_zone` - For DNS resolution
-- `keyvault` - For storing credentials
-- `log_analytics` - For monitoring
+### Security
+- Use Premium SKU for enhanced security features
+- Disable public network access when possible
+- Use private endpoints for secure access
+- Enable managed identity
+- Implement proper RBAC
+- Regular image scanning
 
-## Notes
-- Registry names must be globally unique
-- Premium SKU required for private endpoints
-- Plan storage capacity
-- Consider CI/CD integration
-- Regular security assessments
-- Monitor replication status
+### Networking
+- Configure network rules carefully
+- Use service endpoints where needed
+- Plan private endpoint DNS integration
+- Consider geo-replication for global deployments
+
+### Operations
+- Implement proper tagging
+- Plan retention policies
+- Monitor quota usage
+- Regular security audits
+- Implement CI/CD integration

@@ -1,32 +1,5 @@
 # Azure Key Vault Module
 
-This module deploys an Azure Key Vault configured for secure secret management in a production environment.
-
-## Features
-
-### Security Features
-- Private endpoint access
-- Purge protection enabled
-- Soft delete enabled
-- RBAC authorization
-- Network ACLs configured
-- TLS 1.2 enforcement
-- Disk encryption integration
-
-### Access Control
-- Azure AD integration
-- Fine-grained access policies
-- Managed identity support
-- Automated secret rotation
-- Certificate management
-
-### Monitoring and Compliance
-- Azure Monitor integration
-- Diagnostic logging
-- Audit trail
-- Activity logs
-- Access monitoring
-
 ## Prerequisites and Setup
 
 ### 1. Required Permissions Setup
@@ -85,55 +58,36 @@ az identity list --query "[].{Name:name, Id:id, PrincipalId:principalId}" -o tab
 az aks show -g "your-rg" -n "your-aks-cluster" --query "identityProfile.kubeletidentity.objectId" -o tsv
 ```
 
-## Usage
+## Features
+- Secure key vault deployment with private endpoint support
+- RBAC or Access Policy based authorization
+- Network ACLs for IP and Virtual Network based access control
+- Managed Identity integration
+- Soft-delete and purge protection
+- Diagnostic settings configuration
 
+## Usage
 ```hcl
 module "keyvault" {
   source = "./modules/keyvault"
-
-  name                = "prod-kv"
-  resource_group_name = module.resource_group.name
-  location           = "eastus2"
-  sku_name           = "premium"
-  subnet_id          = module.subnet.id
-  private_dns_zone_id = module.dns.private_dns_zone_id
-
-  access_policies = [
-    {
-      object_id = data.azurerm_client_config.current.object_id
-      secret_permissions = [
-        "Get",
-        "List",
-        "Set",
-        "Delete"
-      ]
-      key_permissions = [
-        "Get",
-        "List",
-        "Create",
-        "Delete"
-      ]
-      certificate_permissions = [
-        "Get",
-        "List",
-        "Create",
-        "Delete"
-      ]
-    }
-  ]
-
-  tags = {
-    Environment = "Production"
-    Project     = "Core Infrastructure"
+  
+  name                = "your-keyvault-name"
+  resource_group_name = "your-resource-group"
+  location            = "eastus"
+  
+  sku_name = "standard"
+  
+  network_acls = {
+    bypass                     = "AzureServices"
+    default_action            = "Deny"
+    ip_rules                  = ["your-ip-address"]
+    virtual_network_subnet_ids = ["subnet-id-for-access"]
   }
+  
+  private_endpoint_subnet_id = "subnet-id-for-private-endpoint"
+  private_dns_zone_id       = "private-dns-zone-id"
 }
 ```
-
-## Required Resources
-- Virtual Network with subnet for private endpoint
-- Private DNS zone for Key Vault
-- Log Analytics workspace for diagnostics
-- Service principals or managed identities for access
 
 ## Variables
 
@@ -142,39 +96,25 @@ module "keyvault" {
 | name | Key Vault name | string | yes | - |
 | resource_group_name | Resource group name | string | yes | - |
 | location | Azure region | string | yes | - |
-| sku_name | SKU name (standard/premium) | string | no | "standard" |
-| subnet_id | Subnet ID for private endpoint | string | yes | - |
-| private_dns_zone_id | Private DNS zone ID | string | yes | - |
-| access_policies | List of access policies | list(map) | no | [] |
-| tags | Resource tags | map(string) | no | {} |
+| sku_name | SKU name (standard or premium) | string | no | "standard" |
+| enabled_for_deployment | Enable VM deployment access | bool | no | false |
+| network_acls | Network ACL configuration | map | no | null |
+| private_endpoint_subnet_id | Subnet ID for private endpoint | string | no | null |
+| tags | Resource tags | map | no | {} |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| key_vault_id | The Key Vault ID |
-| key_vault_uri | The Key Vault URI |
-| private_endpoint_ip | Private endpoint IP address |
+| id | Key Vault resource ID |
+| name | Key Vault name |
+| uri | Key Vault URI |
+| private_endpoint_ip | Private Endpoint IP (if enabled) |
 
-## Best Practices
-1. Always use private endpoints
-2. Enable purge protection for production
-3. Regular access review
-4. Monitor vault operations
-5. Use managed identities where possible
-6. Implement secret rotation
-7. Regular backup of secrets
-8. Document access policies
-
-## Related Modules
-- `private_dns_zone` - For DNS resolution
-- `subnet` - For network configuration
-- `log_analytics` - For monitoring
-- `aks` - For Kubernetes integration
-
-## Notes
-- Key Vault names must be globally unique
-- Premium SKU required for HSM-backed keys
-- Plan secret rotation policies
-- Consider compliance requirements
-- Regular security reviews recommended
+## Security Best Practices
+- Enable RBAC authorization instead of Access Policies when possible
+- Use Private Endpoints for secure access
+- Implement least-privilege access through fine-grained RBAC roles
+- Enable soft-delete and purge protection
+- Use network ACLs to restrict access to specific networks
+- Monitor access through diagnostic settings
