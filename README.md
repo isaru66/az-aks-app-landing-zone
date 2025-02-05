@@ -4,7 +4,7 @@ This repository contains Terraform configurations for deploying production-grade
 
 ## Prerequisites
 
-- Terraform >= 1.0.0
+- Terraform >= 4.17.0
 - Azure CLI >= 2.40.0
 - Azure subscription with required permissions
 - Git (for version control)
