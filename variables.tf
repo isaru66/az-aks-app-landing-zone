@@ -431,3 +431,82 @@ variable "acr_public_access_enabled" {
   type        = bool
   default     = false
 }
+
+# MySQL Flexible Server Variables
+variable "mysql_server_name" {
+  description = "Name of the MySQL Flexible Server"
+  type        = string
+}
+
+variable "mysql_admin_username" {
+  description = "Administrator username for MySQL server"
+  type        = string
+}
+
+variable "mysql_admin_password" {
+  description = "Administrator password for MySQL server"
+  type        = string
+  sensitive   = true
+}
+
+variable "mysql_version" {
+  description = "MySQL version"
+  type        = string
+  default     = "8.0.21"
+}
+
+variable "mysql_sku_name" {
+  description = "SKU name for MySQL Flexible Server"
+  type        = string
+  default     = "GP_Standard_D2ds_v4"
+}
+
+variable "mysql_storage_iops" {
+  description = "Storage IOPS for MySQL server"
+  type        = number
+  default     = 360
+}
+
+variable "mysql_storage_size_gb" {
+  description = "Storage size in GB for MySQL server"
+  type        = number
+  default     = 32
+}
+
+variable "mysql_backup_retention_days" {
+  description = "Backup retention days for MySQL server"
+  type        = number
+  default     = 7
+}
+
+variable "mysql_zone" {
+  description = "Availability zone for MySQL server"
+  type        = string
+  default     = "1"
+}
+
+variable "mysql_standby_zone" {
+  description = "Availability zone for MySQL standby server"
+  type        = string
+  default     = "2"
+}
+
+variable "mysql_high_availability_mode" {
+  description = "High availability mode for MySQL server"
+  type        = string
+  default     = "ZoneRedundant"
+}
+
+variable "mysql_maintenance_window" {
+  description = "Maintenance window for MySQL server"
+  type = object({
+    day_of_week  = number
+    start_hour   = number
+    start_minute = number
+  })
+  default = {
+    day_of_week  = 0
+    start_hour   = 2
+    start_minute = 0
+  }
+}

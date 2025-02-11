@@ -4,6 +4,12 @@ resource "random_string" "storage_account_suffix" {
   upper   = false
 }
 
+resource "random_string" "keyvault_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 resource "azurerm_resource_group" "this" {
   name     = var.resource_group_name
   location = var.location
@@ -37,6 +43,12 @@ module "subnet" {
   address_prefix            = each.value.address_prefix
   network_security_group_id = module.network_security_group.network_security_group_id
   
+  # Add MySQL subnet delegation for the MySQL subnet
+  delegation = each.key == "mysql" ? [{
+    name = "mysql-delegation"
+    service = "Microsoft.DBforMySQL/flexibleServers"
+  }] : []
+
   depends_on = [
     module.virtual_network,
     module.network_security_group
@@ -220,10 +232,34 @@ resource "azurerm_private_dns_zone_virtual_network_link" "acr" {
   tags                 = var.tags
 }
 
+# Create Private DNS Zone for MySQL Flexible Server
+resource "azurerm_private_dns_zone" "mysql" {
+  name                = "privatelink.mysql.database.azure.com"
+  resource_group_name = azurerm_resource_group.this.name
+  tags               = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "mysql" {
+  name                  = "mysql-link"
+  resource_group_name   = azurerm_resource_group.this.name
+  private_dns_zone_name = azurerm_private_dns_zone.mysql.name
+  virtual_network_id    = module.virtual_network.virtual_network_id
+  registration_enabled  = false
+  tags                 = var.tags
+}
+
+# Create user-assigned managed identity for MySQL Flexible Server
+resource "azurerm_user_assigned_identity" "mysql_identity" {
+  name                = "${var.mysql_server_name}-identity"
+  resource_group_name = azurerm_resource_group.this.name
+  location            = var.location
+  tags                = var.tags
+}
+
 module "key_vault" {
   source = "./modules/keyvault"
 
-  name                = var.keyvault_name
+  name                = "${var.keyvault_name}-${random_string.keyvault_suffix.result}"
   resource_group_name = azurerm_resource_group.this.name
   location           = var.location
   sku_name           = var.keyvault_sku
@@ -258,6 +294,48 @@ module "acr" {
   depends_on = [
     azurerm_private_dns_zone.acr,
     azurerm_private_dns_zone_virtual_network_link.acr,
+    module.subnet
+  ]
+}
+
+# Create MySQL Flexible Server
+module "mysql" {
+  source = "./modules/mysql_flexible"
+
+  server_name           = var.mysql_server_name
+  resource_group_name   = azurerm_resource_group.this.name
+  location             = var.location
+  
+  administrator_login    = var.mysql_admin_username
+  administrator_password = var.mysql_admin_password
+  
+  mysql_version = var.mysql_version
+  sku_name      = var.mysql_sku_name
+  
+  storage_iops    = var.mysql_storage_iops
+  storage_size_gb = var.mysql_storage_size_gb
+  
+  subnet_id           = module.subnet["mysql"].subnet_id  # Fixed: using correct output reference
+  subnet_cidr         = var.subnets["mysql"].address_prefix
+  private_dns_zone_id = azurerm_private_dns_zone.mysql.id
+  
+  backup_retention_days = var.mysql_backup_retention_days
+  
+  high_availability_mode      = var.mysql_high_availability_mode
+  zone                       = var.mysql_zone
+  standby_availability_zone  = var.mysql_standby_zone
+  
+  maintenance_window = var.mysql_maintenance_window
+  
+  log_analytics_workspace_id = module.log_analytics.workspace_id
+  
+  identity_id = azurerm_user_assigned_identity.mysql_identity.id
+  
+  tags = var.tags
+
+  depends_on = [
+    azurerm_private_dns_zone.mysql,
+    azurerm_private_dns_zone_virtual_network_link.mysql,
     module.subnet
   ]
 }

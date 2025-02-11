@@ -21,6 +21,7 @@ This repository contains Terraform configurations for deploying production-grade
 │   ├── bastion/               # Azure Bastion Host
 │   ├── keyvault/              # Azure Key Vault
 │   ├── log_analytics/         # Log Analytics Workspace
+│   ├── mysql_flexible/        # Azure Database for MySQL Flexible Server
 │   ├── network_security_group/# Network Security Groups
 │   ├── private_dns_zone/      # Private DNS Zones
 │   ├── resource_group/        # Resource Groups
@@ -33,6 +34,21 @@ This repository contains Terraform configurations for deploying production-grade
 ├── providers.tf              # Provider configurations
 └── outputs.tf                # Output declarations
 ```
+
+## Module Details
+
+Each module follows a consistent structure:
+- `main.tf` - Primary resource configurations
+- `variables.tf` - Input variable declarations
+- `outputs.tf` - Output value definitions
+- `README.md` - Module-specific documentation
+
+### Common Module Features
+- Consistent tagging support
+- Resource naming following Azure conventions
+- Optional feature flags
+- Dependency handling
+- Comprehensive output values
 
 ## Infrastructure Configuration Standards
 
@@ -50,27 +66,23 @@ terraform {
 ```
 
 ### Resource Naming Convention
-We follow Azure's recommended naming convention:
+We follow Azure's recommended naming convention with standardized prefixes:
 
-- Resource Groups: `rg-<environment>-<region>-<workload>`
-- Virtual Networks: `vnet-<environment>-<region>-<workload>`
-- Subnets: `snet-<environment>-<purpose>`
-- AKS Clusters: `aks-<environment>-<region>-<workload>`
-- ACR: `acr<environment><workload>` (no hyphens allowed)
-- Key Vault: `kv-<environment>-<workload>`
-- Storage Account: `st<environment><workload>` (no hyphens allowed)
-
-Example variables in terraform.tfvars:
-```hcl
-environment = "prod"
-region      = "eastus"
-workload    = "platform"
-```
+| Resource Type | Pattern | Example |
+|--------------|---------|---------|
+| Resource Groups | `rg-<environment>-<region>-<workload>` | `rg-prod-eastus-platform` |
+| Virtual Networks | `vnet-<environment>-<region>-<workload>` | `vnet-prod-eastus-platform` |
+| Subnets | `snet-<environment>-<purpose>` | `snet-prod-aks` |
+| AKS Clusters | `aks-<environment>-<region>-<workload>` | `aks-prod-eastus-platform` |
+| ACR | `acr<environment><workload>` | `acrprodplatform` |
+| Key Vault | `kv-<environment>-<workload>` | `kv-prod-platform` |
+| Storage Account | `st<environment><workload>` | `stprodplatform` |
+| MySQL Flexible | `mysql-flex-<environment>-<workload>` | `mysql-flex-prod-platform` |
+| Log Analytics | `log-<environment>-<region>-<workload>` | `log-prod-eastus-platform` |
 
 ## Variable Management
 
-### Root Module Variables
-Variables are declared in `variables.tf`:
+### Root Module Variables (variables.tf)
 ```hcl
 variable "environment" {
   type        = string
@@ -81,29 +93,55 @@ variable "location" {
   type        = string
   description = "Azure region for resource deployment"
 }
+
+variable "tags" {
+  type        = map(string)
+  description = "Common tags to be applied to all resources"
+  default     = {}
+}
 ```
 
-### Module Variables
-Each module contains its own `variables.tf` with clear type constraints and descriptions.
-
-## Authentication and Initialization
-
-1. Azure Authentication:
-```bash
-az login
-az account set --subscription="SUBSCRIPTION_ID"
+### Variable Assignment (terraform.tfvars)
+```hcl
+environment = "prod"
+location    = "eastus"
+workload    = "platform"
+tags = {
+  Environment = "Production"
+  Owner       = "Platform Team"
+  ManagedBy   = "Terraform"
+}
 ```
 
-2. Initialize Terraform:
-```bash
-terraform init
-```
+## Deployment Process
 
-3. Deploy Infrastructure:
-```bash
-terraform plan -out=tfplan
-terraform apply tfplan
-```
+1. **Authentication**:
+   ```bash
+   az login
+   az account set --subscription="SUBSCRIPTION_ID"
+   ```
+
+2. **Workspace Selection**:
+   ```bash
+   terraform workspace select <environment> || terraform workspace new <environment>
+   ```
+
+3. **Configuration Validation**:
+   ```bash
+   terraform init
+   terraform validate
+   terraform fmt -check -recursive
+   ```
+
+4. **Deployment Planning**:
+   ```bash
+   terraform plan -out=tfplan
+   ```
+
+5. **Infrastructure Application**:
+   ```bash
+   terraform apply tfplan
+   ```
 
 ## Module Usage Examples
 
@@ -142,11 +180,42 @@ module "virtual_network" {
 
 ## State Management
 
-State is stored in Azure Storage with the following features:
-- State locking to prevent concurrent modifications
-- Encryption at rest
-- Access control via Azure AD
-- Versioning enabled for rollback capability
+State is managed in Azure Storage with these features:
+- State file locking (prevents concurrent modifications)
+- Encryption at rest (AES-256)
+- Access control via Azure AD identities
+- Soft delete and versioning enabled
+- Regular backups
+
+Example backend configuration:
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "stterraformstate"
+    container_name      = "tfstate"
+    key                 = "prod.terraform.tfstate"
+  }
+}
+```
+
+## Security Considerations
+
+- All sensitive values stored in Key Vault
+- Network isolation through NSGs and private endpoints
+- RBAC assignments for least-privilege access
+- Regular secret rotation policy
+- Network security groups with defined security rules
+- Service endpoints for Azure PaaS services
+- Private DNS zones for private endpoints
+
+## Monitoring and Logging
+
+- Log Analytics workspace for centralized logging
+- Diagnostic settings enabled on all supported resources
+- Custom metrics and log queries
+- Azure Monitor alerts configuration
+- Activity logs retention policy
 
 ## Output Values
 
@@ -159,10 +228,10 @@ Relevant resource information is exposed through outputs.tf, including:
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes following the established conventions
-4. Update documentation as needed
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 

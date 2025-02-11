@@ -1,6 +1,6 @@
 # Common Configuration
 location            = "southeastasia"
-resource_group_name = "my-secure-storage-rg"
+resource_group_name = "jm-aks-app-spoke"
 
 # Tags
 tags = {
@@ -19,15 +19,19 @@ subnet_prefix              = "10.0.1.0/24"
 subnets = {
   aks = {
     name           = "aks-subnet"
-    address_prefix = "10.0.4.0/22"
+    address_prefix = "10.0.4.0/24"
   }
   pe-subnet = {
     name           = "pe-subnet"
     address_prefix = "10.0.8.0/24"
   }
   AzureBastionSubnet = {
-    name           = "AzureBastionSubnet"
+    name           = "AzureBastionSubnet" # default value for Azure Bastion
     address_prefix = "10.0.9.0/24"
+  }
+  mysql = {
+    name           = "mysql-subnet"
+    address_prefix = "10.0.5.0/24"
   }
 }
 
@@ -112,4 +116,22 @@ grafana_name             = "jm-grafana"  # Changed to follow consistent naming c
 
 # Bastion Configuration
 bastion_host_name = "jm-bastion"
+
+# MySQL Configuration
+mysql_server_name = "jm-mysql-server"
+mysql_admin_username = "mysqladmin"
+mysql_admin_password = "P@ssw0rd123!@#"  # Replace with a strong password
+mysql_version = "8.0.21"
+mysql_sku_name = "GP_Standard_D2ds_v4"
+mysql_storage_iops = 360
+mysql_storage_size_gb = 32
+mysql_backup_retention_days = 7
+mysql_zone = "1"
+mysql_standby_zone = "2"
+mysql_high_availability_mode = "ZoneRedundant"
+mysql_maintenance_window = {
+  day_of_week  = 0  # Sunday
+  start_hour   = 2  # 2 AM
+  start_minute = 0
+}
 

@@ -65,3 +65,20 @@ output "acr_private_endpoint_ip" {
   description = "The private IP address of the ACR private endpoint"
   value       = module.acr.private_endpoint_ip
 }
+
+# MySQL Flexible Server outputs
+output "mysql_server_id" {
+  description = "The ID of the MySQL Flexible Server"
+  value       = module.mysql.server_id
+}
+
+output "mysql_server_name" {
+  description = "The name of the MySQL Flexible Server"
+  value       = module.mysql.server_name
+}
+
+output "mysql_server_fqdn" {
+  description = "The FQDN of the MySQL Flexible Server"
+  value       = module.mysql.server_fqdn
+  sensitive   = true
+}
