@@ -351,20 +351,3 @@ resource "azurerm_monitor_data_collection_rule_association" "aks" {
   target_resource_id      = azurerm_kubernetes_cluster.this.id
   data_collection_rule_id = azurerm_monitor_data_collection_rule.aks[0].id
 }
-
-# resource "azurerm_monitor_diagnostic_setting" "aks_diagnostic_setting" {
-#   name                        = coalesce(var.diagnostic_setting_name, "aks-diagnostics")
-#   target_resource_id          = azurerm_kubernetes_cluster.this.id
-#   log_analytics_workspace_id  = var.log_analytics_workspace_id
-
-#   enabled_log {
-#     category_group = "allLogs"
-#   }
-
-#   metric {
-#     category = "AllMetrics"
-#     enabled  = true
-#   }
-
-#   depends_on = [azurerm_kubernetes_cluster.this]
-# }
