@@ -11,7 +11,7 @@ resource "azurerm_bastion_host" "bastion" {
   name                = var.name
   location            = var.location
   resource_group_name = var.resource_group_name
-  sku                = "Standard"
+  sku                = "Basic"
 
   ip_configuration {
     name                 = "configuration"
@@ -20,4 +20,8 @@ resource "azurerm_bastion_host" "bastion" {
   }
 
   tags = var.tags
+  
+  depends_on = [
+    azurerm_public_ip.bastion
+  ]
 }

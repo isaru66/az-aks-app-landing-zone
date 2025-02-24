@@ -49,23 +49,6 @@ resource "azurerm_mysql_flexible_server" "mysql" {
   tags = var.tags
 }
 
-# Diagnostic settings configuration
-# Enables comprehensive logging and metrics collection
-resource "azurerm_monitor_diagnostic_setting" "mysql" {
-  name                       = "${var.server_name}-diagnostics"
-  target_resource_id         = azurerm_mysql_flexible_server.mysql.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category_group = "allLogs"  # Captures all available logs
-  }
-
-  metric {
-    category = "AllMetrics"
-    enabled  = true
-  }
-}
-
 # Security configurations
 # Enforce secure transport for all connections
 resource "azurerm_mysql_flexible_server_configuration" "require_secure_transport" {
@@ -92,3 +75,20 @@ resource "azurerm_mysql_flexible_server_firewall_rule" "vnet" {
   start_ip_address    = cidrhost(var.subnet_cidr, 0)    # First IP in subnet
   end_ip_address      = cidrhost(var.subnet_cidr, -1)   # Last IP in subnet
 }
+
+# resource "azurerm_monitor_diagnostic_setting" "mysql" {
+#   name                        = coalesce(var.diagnostic_setting_name, "jm-mysql-server-diagnostics")
+#   target_resource_id          = azurerm_mysql_flexible_server.mysql.id
+#   log_analytics_workspace_id  = var.log_analytics_workspace_id
+  
+#   enabled_log {
+#     category_group = "allLogs"
+#   }
+  
+#   metric {
+#     category = "AllMetrics"
+#     enabled  = true
+#   }
+  
+#   depends_on = [azurerm_mysql_flexible_server.mysql]
+# }

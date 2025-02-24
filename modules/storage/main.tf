@@ -62,7 +62,7 @@ resource "azurerm_role_assignment" "storage_blob_data_owner" {
   principal_id         = var.principal_id
 }
 
-# Diagnostic settings
+// Updated diagnostic settings
 resource "azurerm_monitor_diagnostic_setting" "storage" {
   name                       = "${var.storage_account_name}-diagnostics"
   target_resource_id         = azurerm_storage_account.storage.id
@@ -70,6 +70,11 @@ resource "azurerm_monitor_diagnostic_setting" "storage" {
 
   metric {
     category = "Transaction"
+    enabled  = true
+  }
+
+  metric {
+    category = "Capacity"
     enabled  = true
   }
 }
@@ -89,6 +94,42 @@ resource "azurerm_monitor_diagnostic_setting" "blob_diagnostic" {
 
   metric {
     category = "Transaction"
+    enabled  = true
+  }
+
+  metric {
+    category = "Capacity"
+    enabled  = true
+  }
+
+  lifecycle {
+    create_before_destroy = true
+    replace_triggered_by = [
+      azurerm_storage_account.storage.id
+    ]
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "file_diagnostic" {
+  name                       = "${var.storage_account_name}-file-diagnostics"
+  target_resource_id         = "${azurerm_storage_account.storage.id}/fileServices/default"
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "audit"
+  }
+
+  enabled_log {
+    category_group = "allLogs"
+  }
+
+  metric {
+    category = "Transaction"
+    enabled  = true
+  }
+
+  metric {
+    category = "Capacity"
     enabled  = true
   }
 }

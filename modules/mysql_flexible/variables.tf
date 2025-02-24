@@ -128,3 +128,21 @@ variable "identity_id" {
   description = "ID of the User Assigned Identity to be used by the MySQL Flexible Server"
   type        = string
 }
+
+variable "import_existing_diagnostics" {
+  description = "Whether to attempt importing existing diagnostic settings"
+  type        = bool
+  default     = true
+}
+
+variable "prevent_diagnostic_settings_deletion" {
+  description = "Prevent the destruction of existing diagnostic settings"
+  type        = bool
+  default     = true
+}
+
+variable "diagnostic_setting_name" {
+  description = "Name of the diagnostic setting for MySQL Flexible Server"
+  type        = string
+  default     = "jm-mysql-server-diagnostics"
+}

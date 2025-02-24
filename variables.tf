@@ -510,3 +510,35 @@ variable "mysql_maintenance_window" {
     start_minute = 0
   }
 }
+
+# Linux VM Variables
+variable "linux_vm_name" {
+  description = "Name of the Linux VM"
+  type        = string
+}
+
+variable "linux_vm_size" {
+  description = "Size of the Linux VM"
+  type        = string
+}
+
+variable "linux_admin_username" {
+  description = "Admin username for the Linux VM"
+  type        = string
+}
+
+variable "linux_os_disk_type" {
+  description = "OS disk type for Linux VM"
+  type        = string
+}
+
+variable "linux_os_disk_size_gb" {
+  description = "OS disk size in GB for Linux VM"
+  type        = number
+}
+
+variable "linux_admin_password" {
+  description = "The password for the Linux VM admin user. Must be between 6-72 characters long and must satisfy at least 3 password complexity requirements"
+  type        = string
+  sensitive   = true
+}

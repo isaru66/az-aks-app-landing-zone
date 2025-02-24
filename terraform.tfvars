@@ -33,6 +33,10 @@ subnets = {
     name           = "mysql-subnet"
     address_prefix = "10.0.5.0/24"
   }
+  vm-subnet = {
+    name           = "vm-subnet"
+    address_prefix = "10.0.6.0/24"
+  }
 }
 
 # AKS Configuration
@@ -134,4 +138,12 @@ mysql_maintenance_window = {
   start_hour   = 2  # 2 AM
   start_minute = 0
 }
+
+# Linux VM Configuration
+linux_vm_name         = "jm-example-vm"
+linux_vm_size         = "Standard_D2s_v3"
+linux_admin_username  = "adminuser"
+linux_os_disk_type    = "StandardSSD_LRS"
+linux_os_disk_size_gb = 64
+linux_admin_password = "YourSecurePassword123!" # Replace this with a secure password or use environment variables
 

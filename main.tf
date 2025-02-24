@@ -273,7 +273,8 @@ module "key_vault" {
   depends_on = [
     azurerm_private_dns_zone.keyvault,
     azurerm_private_dns_zone_virtual_network_link.keyvault,
-    module.subnet
+    module.subnet,
+    module.storage  // Adding storage module dependency
   ]
 }
 
@@ -336,6 +337,28 @@ module "mysql" {
   depends_on = [
     azurerm_private_dns_zone.mysql,
     azurerm_private_dns_zone_virtual_network_link.mysql,
-    module.subnet
+    module.subnet,
+    module.log_analytics  // Adding Log Analytics dependency
+  ]
+}
+
+# Create Linux VM
+module "linux_vm" {
+  source              = "./modules/linux_vm"
+  vm_name             = var.linux_vm_name
+  resource_group_name = azurerm_resource_group.this.name
+  location           = var.location
+  vm_size            = var.linux_vm_size
+  subnet_id          = module.subnet["vm-subnet"].subnet_id
+  admin_username     = var.linux_admin_username
+  admin_password     = var.linux_admin_password
+  os_disk_type       = var.linux_os_disk_type
+  os_disk_size_gb    = var.linux_os_disk_size_gb
+  tags              = var.tags
+
+  depends_on = [
+    module.virtual_network,
+    module.subnet,
+    module.bastion  // Adding bastion module dependency
   ]
 }
