@@ -243,12 +243,14 @@ resource "azurerm_kubernetes_cluster" "this" {
 
   azure_policy_enabled = var.azure_policy_enabled
   
-  api_server_access_profile {
-    authorized_ip_ranges = var.api_server_authorized_ip_ranges
+  dynamic "api_server_access_profile" {
+    for_each = var.api_server_authorized_ip_ranges != null ? [1] : []
+    content {
+      authorized_ip_ranges = var.api_server_authorized_ip_ranges
+    }
   }
 
   # Cluster autoscaler configuration
-  # Controls how the cluster scales nodes
   auto_scaler_profile {
     balance_similar_node_groups      = true
     expander                         = "random"  # Options: random, most-pods, least-waste, priority

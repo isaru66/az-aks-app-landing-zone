@@ -43,7 +43,7 @@ variable "sku_name" {
 variable "storage_iops" {
   description = "Storage IOPS for the server"
   type        = number
-  default     = 360
+  default     = 396  // Updated from 360 to match actual deployed value
 }
 
 variable "storage_size_gb" {

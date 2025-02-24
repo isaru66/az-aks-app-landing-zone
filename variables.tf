@@ -432,7 +432,7 @@ variable "acr_public_access_enabled" {
   default     = false
 }
 
-# MySQL Flexible Server Variables
+// MySQL Flexible Server Variables
 variable "mysql_server_name" {
   description = "Name of the MySQL Flexible Server"
   type        = string
@@ -464,7 +464,7 @@ variable "mysql_sku_name" {
 variable "mysql_storage_iops" {
   description = "Storage IOPS for MySQL server"
   type        = number
-  default     = 360
+  default     = 396
 }
 
 variable "mysql_storage_size_gb" {
