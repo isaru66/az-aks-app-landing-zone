@@ -28,10 +28,10 @@ resource "azurerm_mysql_flexible_server" "mysql" {
   }
 
   # High Availability configuration
-  high_availability {
-    mode                      = var.high_availability_mode
-    standby_availability_zone = var.standby_availability_zone
-  }
+  # high_availability {
+  #   mode                      = var.high_availability_mode
+  #   standby_availability_zone = var.standby_availability_zone
+  # }
 
   # Maintenance window configuration
   maintenance_window {
