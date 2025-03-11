@@ -41,7 +41,7 @@ subnets = {
 
 # AKS Configuration
 aks_cluster_name           = "jmexampleaks"  # Changed to meet Azure naming restrictions
-kubernetes_version         = "1.28.3"
+kubernetes_version         = "1.32.0"
 network_plugin            = "azure"
 network_policy            = "azure"
 dns_service_ip           = "172.16.0.10"

@@ -187,6 +187,14 @@ resource "azurerm_role_assignment" "aks_admin_group" {
   depends_on          = [module.aks]
 }
 
+# Grant VM managed identity access to AKS
+resource "azurerm_role_assignment" "vm_aks_user" {
+  scope                = module.aks.cluster_id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = module.linux_vm.system_assigned_identity_principal_id
+  depends_on          = [module.aks, module.linux_vm]
+}
+
 module "bastion" {
   source = "./modules/bastion"
 
