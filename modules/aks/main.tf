@@ -276,6 +276,8 @@ resource "azurerm_kubernetes_cluster" "this" {
   }
 
   tags = var.tags
+  
+  depends_on = [ azurerm_user_assigned_identity.aks_identity, azurerm_role_assignment.mi_operator ]
 }
 
 # Configure AKS monitoring access
