@@ -104,18 +104,16 @@ We follow Azure's recommended naming convention with standardized prefixes:
 3. **Configuration Validation**:
    ```bash
    terraform init
-   terraform validate
-   terraform fmt -check -recursive
    ```
 
 4. **Deployment Planning**:
    ```bash
-   terraform plan -out=tfplan
+   terraform plan
    ```
 
 5. **Infrastructure Application**:
    ```bash
-   terraform apply tfplan
+   terraform apply
    ```
 
 ## Security Best Practices
