@@ -23,3 +23,4 @@ terraform.rc
 *.key
 *.pfx
 *.cer
+.DS_Store
