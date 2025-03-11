@@ -1,5 +1,7 @@
 # Resource Group Module
 
+A Terraform module for managing Azure Resource Groups with comprehensive access control and organization features.
+
 ## Prerequisites and Setup
 
 ### 1. Required Role Assignments
@@ -14,12 +16,6 @@ az role assignment list \
 az role assignment create \
     --assignee $(az account show --query user.name -o tsv) \
     --role "Resource Group Contributor" \
-    --scope "/subscriptions/$(az account show --query id -o tsv)"
-
-# For full management, consider Owner role (use with caution)
-az role assignment create \
-    --assignee $(az account show --query user.name -o tsv) \
-    --role "Owner" \
     --scope "/subscriptions/$(az account show --query id -o tsv)"
 ```
 
@@ -58,8 +54,13 @@ az policy assignment create \
 - Policy enforcement
 - Resource locking capabilities
 - Tag management
+- Budget tracking
+- Role assignment management
+- Diagnostic settings
+- Activity logging
 
 ## Usage
+
 ```hcl
 module "resource_group" {
   source = "./modules/resource_group"
@@ -67,13 +68,16 @@ module "resource_group" {
   name     = "prod-aks-rg"
   location = "eastus"
   
+  # Optional resource locking
   lock_level = "CanNotDelete"  # Optional: ReadOnly, CanNotDelete
   
+  # Required tags
   tags = {
     Environment = "Production"
     ManagedBy   = "Terraform"
     Project     = "AKS Infrastructure"
     Owner       = "Platform Team"
+    CostCenter  = "IT-12345"
   }
 }
 
@@ -84,16 +88,23 @@ module "resource_group_with_rbac" {
   name     = "prod-shared-rg"
   location = "eastus"
   
+  # Role assignments for access control
   role_assignments = [
     {
       principal_id         = "00000000-0000-0000-0000-000000000000"
       role_definition_name = "Contributor"
       description         = "Platform team access"
+    },
+    {
+      principal_id         = "11111111-1111-1111-1111-111111111111"
+      role_definition_name = "Reader"
+      description         = "Monitoring team access"
     }
   ]
 
   tags = {
     Environment = "Production"
+    ManagedBy   = "Terraform"
   }
 }
 ```
@@ -142,3 +153,50 @@ object({
 - Implement RBAC at resource group level
 - Apply relevant policies
 - Monitor resource usage
+- Regular access review
+- Cost tracking
+- Activity logging
+
+## Naming Convention
+Follow Azure's recommended pattern:
+```
+rg-<environment>-<region>-<workload>
+```
+Examples:
+- rg-prod-eastus-aks
+- rg-dev-westus-shared
+- rg-stage-eastus2-data
+
+## Policy Recommendations
+Consider implementing these policies:
+- Require specific tags
+- Enforce naming convention
+- Restrict resource types
+- Enforce resource locks
+- Require network security
+- Enable diagnostic settings
+
+## Cost Management
+- Set up budgets
+- Track spending by tags
+- Monitor resource usage
+- Set up cost alerts
+- Regular cost review
+- Resource optimization
+
+## Security Controls
+- Regular access review
+- Principle of least privilege
+- Activity log monitoring
+- Resource locking
+- Policy enforcement
+- Audit logging
+
+## Monitoring
+Enable monitoring for:
+- Resource changes
+- Access patterns
+- Policy compliance
+- Cost trends
+- Activity logs
+- Resource health

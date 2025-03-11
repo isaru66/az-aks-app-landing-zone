@@ -1,17 +1,60 @@
-# Azure MySQL Flexible Server Terraform Module
+# Azure MySQL Flexible Server Module
 
-This module deploys an Azure MySQL Flexible Server with comprehensive configurations for high availability, security, monitoring, and networking.
+A Terraform module for deploying Azure Database for MySQL Flexible Server with comprehensive configurations for high availability, security, monitoring, and networking.
+
+## Prerequisites and Setup
+
+### 1. Required Role Assignments
+```bash
+# Check MySQL permissions
+az role assignment list \
+    --assignee $(az account show --query user.name -o tsv) \
+    --query "[?contains(roleDefinitionName, 'MySQL')].roleDefinitionName" \
+    -o tsv
+
+# Assign MySQL Contributor role if needed
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "MySQL Contributor" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+```
+
+### 2. Network Prerequisites
+```bash
+# Create subnet for MySQL delegation
+az network vnet subnet create \
+    --name "mysql-subnet" \
+    --resource-group "your-rg" \
+    --vnet-name "your-vnet" \
+    --address-prefix "10.0.3.0/24" \
+    --delegations "Microsoft.DBforMySQL/flexibleServers"
+
+# Create private DNS zone
+az network private-dns zone create \
+    --resource-group "your-rg" \
+    --name "privatelink.mysql.database.azure.net"
+
+# Link private DNS zone to VNet
+az network private-dns link vnet create \
+    --resource-group "your-rg" \
+    --zone-name "privatelink.mysql.database.azure.net" \
+    --name "mysql-dns-link" \
+    --virtual-network "your-vnet" \
+    --registration-enabled false
+```
 
 ## Features
-
-- Configurable server specifications (SKU, storage, version)
-- High Availability configuration with standby zone support
+- Flexible server deployment with high availability
 - Private networking with subnet delegation
-- Automated backups with configurable retention
-- Comprehensive monitoring with Azure Monitor integration
-- Enhanced security with TLS 1.2 enforcement
-- Maintenance window configuration
-- VNet integration with custom firewall rules
+- Automated backup configuration
+- Point-in-time restore capabilities
+- Maintenance window scheduling
+- Performance tier selection
+- Storage auto-growth
+- SSL enforcement
+- Firewall rules
+- Parameter customization
+- Monitoring integration
 
 ## Usage
 
@@ -19,115 +62,163 @@ This module deploys an Azure MySQL Flexible Server with comprehensive configurat
 module "mysql_flexible" {
   source = "./modules/mysql_flexible"
 
-  server_name           = "my-mysql-server"
-  resource_group_name   = "my-resource-group"
-  location             = "eastus2"
-  administrator_login   = "mysqladmin"
-  administrator_password = "your-secure-password"
+  # Basic Configuration
+  name                = "mysql-flex-prod"
+  resource_group_name = module.resource_group.name
+  location           = "eastus"
   
-  # Network configuration
-  subnet_id            = "/subscriptions/.../subnets/mysql-subnet"
-  private_dns_zone_id  = "/subscriptions/.../privateDnsZones/mysql.database.azure.com"
-  subnet_cidr          = "10.0.1.0/24"
+  # Admin credentials (store securely in Key Vault)
+  administrator_login    = var.mysql_admin_username
+  administrator_password = var.mysql_admin_password
   
-  # Server specifications
-  sku_name             = "GP_Standard_D2ds_v4"
-  mysql_version        = "8.0.21"
-  zone                 = "1"
-  
-  # Storage configuration
-  storage_iops         = 360
-  storage_size_gb      = 20
+  # Server Configuration
+  sku_name      = "GP_Standard_D4ds_v4"
+  version       = "8.0.21"
+  storage_mb    = 32768
+  zone          = "1"
   
   # High Availability
-  high_availability_mode = "ZoneRedundant"
-  standby_availability_zone = "2"
+  high_availability = {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
   
-  # Backup configuration
-  backup_retention_days = 7
+  # Backup Configuration
+  backup_retention_days        = 30
+  geo_redundant_backup_enabled = true
   
-  # Maintenance window
+  # Network Configuration
+  delegated_subnet_id = module.subnet["mysql"].id
+  private_dns_zone_id = module.private_dns_zone["mysql"].id
+  
+  # Maintenance Window
   maintenance_window = {
     day_of_week  = 0
     start_hour   = 3
     start_minute = 0
   }
   
-  # Monitoring
-  log_analytics_workspace_id = "/subscriptions/.../workspaces/my-workspace"
+  # Firewall Rules (if needed)
+  firewall_rules = {
+    "AllowAKS" = {
+      start_ip_address = "10.0.0.0"
+      end_ip_address   = "10.0.3.255"
+    }
+  }
   
+  # Optional MySQL Parameters
+  mysql_configurations = {
+    "slow_query_log"      = "ON"
+    "long_query_time"     = "2"
+    "max_connections"     = "1000"
+    "interactive_timeout" = "28800"
+  }
+
   tags = {
     Environment = "Production"
-    Project     = "MyProject"
+    ManagedBy   = "Terraform"
   }
 }
 ```
 
-## Required Variables
+## Requirements
 
-| Name | Description | Type | Required |
-|------|-------------|------|----------|
-| server_name | The name of the MySQL Flexible Server | string | yes |
-| resource_group_name | The name of the resource group | string | yes |
-| location | Azure region where the server will be deployed | string | yes |
-| administrator_login | Administrator username | string | yes |
-| administrator_password | Administrator password | string | yes |
-| subnet_id | ID of the subnet for server deployment | string | yes |
-| private_dns_zone_id | ID of the private DNS zone | string | yes |
-| subnet_cidr | CIDR range of the subnet | string | yes |
-| log_analytics_workspace_id | ID of the Log Analytics workspace | string | yes |
+| Name | Version |
+|------|---------|
+| terraform | >= 1.0.0 |
+| azurerm | ~> 3.0 |
 
-## Optional Variables
+## Variables
 
-| Name | Description | Type | Default |
-|------|-------------|------|---------|
-| mysql_version | MySQL version | string | "8.0.21" |
-| sku_name | SKU name for the server | string | "GP_Standard_D2ds_v4" |
-| storage_iops | Storage IOPS | number | 360 |
-| storage_size_gb | Storage size in GB | number | 20 |
-| backup_retention_days | Backup retention period in days | number | 7 |
-| zone | Availability zone number | string | "1" |
-| high_availability_mode | HA mode (Disabled/ZoneRedundant) | string | "Disabled" |
-| tags | Resource tags | map(string) | {} |
+| Name | Description | Type | Required | Default |
+|------|-------------|------|----------|---------|
+| name | Server name | string | yes | - |
+| resource_group_name | Resource group name | string | yes | - |
+| location | Azure region | string | yes | - |
+| administrator_login | Admin username | string | yes | - |
+| administrator_password | Admin password | string | yes | - |
+| sku_name | SKU name | string | no | "GP_Standard_D2ds_v4" |
+| version | MySQL version | string | no | "8.0.21" |
+| storage_mb | Storage in MB | number | no | 32768 |
+| backup_retention_days | Backup retention days | number | no | 7 |
+| geo_redundant_backup_enabled | Enable geo-redundant backup | bool | no | false |
+| zone | Availability zone | string | no | "1" |
+| high_availability | HA configuration | object | no | null |
+| delegated_subnet_id | Subnet ID | string | yes | - |
+| private_dns_zone_id | Private DNS zone ID | string | yes | - |
+| maintenance_window | Maintenance window config | object | no | null |
+| firewall_rules | Firewall rules | map(object) | no | {} |
+| mysql_configurations | MySQL parameters | map(string) | no | {} |
+| tags | Resource tags | map(string) | no | {} |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| server_id | The ID of the MySQL Flexible Server |
-| server_fqdn | The FQDN of the MySQL Flexible Server |
-| server_name | The name of the MySQL Flexible Server |
+| server_id | The MySQL Server ID |
+| server_fqdn | The FQDN of the server |
+| server_name | The name of the server |
+| administrator_login | The administrator username |
+| version | The version of MySQL |
 
-## Security Features
+## Best Practices
 
-- TLS 1.2 enforcement
-- Secure transport requirement
-- Private network integration
-- Automated diagnostic logging
-- Network isolation through firewall rules
+### Security
+- Use private networking
+- Enable SSL enforcement
+- Implement firewall rules
+- Regular password rotation
+- Monitor access logs
+- Encrypt backups
+- Use managed identities
+- Regular security audits
 
-## Notes
+### Performance
+- Choose appropriate SKU
+- Monitor resource usage
+- Configure auto-scaling
+- Optimize queries
+- Regular maintenance
+- Monitor connections
+- Configure caching
+- Index optimization
 
-- The server is deployed in a private network configuration
-- High Availability requires GP or Memory Optimized SKU
-- Maintenance window is configurable to minimize impact
-- All connections require SSL/TLS
-- Comprehensive logging is enabled by default
+### High Availability
+- Enable zone redundancy
+- Configure backups
+- Test failover
+- Monitor replication
+- Plan maintenance
+- Document procedures
+- Regular testing
+- Monitor latency
 
-## Subnet Delegation Example
+### Monitoring
+- Enable diagnostic logs
+- Configure alerts
+- Monitor metrics
+- Track performance
+- Query analysis
+- Resource utilization
+- Backup status
+- Security events
 
-```hcl
-resource "azurerm_subnet" "mysql" {
-  name                 = "mysql-subnet"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = var.virtual_network_name
-  address_prefixes     = ["10.0.5.0/24"]
-  
-  delegation {
-    name = "mysql-delegation"
-    service_delegation {
-      name    = "Microsoft.DBforMySQL/flexibleServers"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
-    }
-  }
-}
+### Cost Management
+- Right-size instances
+- Monitor storage
+- Backup retention
+- Performance tier
+- Resource scheduling
+- Usage monitoring
+- Cost allocation
+- Budget alerts
+
+### Backup and Recovery
+- Regular backups
+- Geo-redundant storage
+- Point-in-time recovery
+- Test restores
+- Document procedures
+- Monitor success
+- Retention policy
+- Secure storage

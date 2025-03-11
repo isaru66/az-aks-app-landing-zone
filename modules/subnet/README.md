@@ -1,17 +1,51 @@
 # Subnet Module
 
-A Terraform module for creating and managing Azure Virtual Network subnets with advanced networking features.
+A Terraform module for managing Azure Virtual Network Subnets with service delegation and security features.
+
+## Prerequisites and Setup
+
+### 1. Required Role Assignments
+```bash
+# Check network permissions
+az role assignment list \
+    --assignee $(az account show --query user.name -o tsv) \
+    --query "[?contains(roleDefinitionName, 'Network')].roleDefinitionName" \
+    -o tsv
+
+# Assign Network Contributor role if needed
+az role assignment create \
+    --assignee $(az account show --query user.name -o tsv) \
+    --role "Network Contributor" \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+```
+
+### 2. Pre-deployment Checks
+```bash
+# Check address space availability
+az network vnet show \
+    --resource-group "your-rg" \
+    --name "your-vnet" \
+    --query "addressSpace.addressPrefixes"
+
+# List existing subnets
+az network vnet subnet list \
+    --resource-group "your-rg" \
+    --vnet-name "your-vnet" \
+    --query "[].{Name:name, Prefix:addressPrefix}" \
+    -o table
+```
 
 ## Features
-
-- Service endpoint configuration
-- Subnet delegation support
-- Network security group association
-- Route table association
+- Service delegation support
 - Private endpoint policies
-- Service endpoint policies
+- Service endpoints
 - NAT gateway integration
-- IP address space management
+- Route table association
+- NSG association
+- Subnet delegation
+- Address prefix management
+- Service endpoint policies
+- Network policies
 
 ## Usage
 
@@ -19,31 +53,124 @@ A Terraform module for creating and managing Azure Virtual Network subnets with 
 module "subnet" {
   source = "./modules/subnet"
 
-  subnet_name           = "aks-subnet"
-  resource_group_name   = module.resource_group.name
-  vnet_name            = module.vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
+  # Basic Configuration
+  name                = "snet-aks-prod"
+  resource_group_name = module.resource_group.name
+  virtual_network_name = module.vnet.name
+  address_prefixes    = ["10.0.1.0/24"]
   
+  # Service Endpoints
   service_endpoints = [
-    "Microsoft.ContainerRegistry",
     "Microsoft.KeyVault",
+    "Microsoft.ContainerRegistry",
     "Microsoft.Storage"
   ]
   
-  delegations = [
-    {
-      name = "aks-delegation"
-      service_delegation = {
-        name    = "Microsoft.ContainerService/managedClusters"
-        actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
-      }
-    }
-  ]
-
+  # Private Endpoint Policies
   private_endpoint_network_policies_enabled     = true
   private_link_service_network_policies_enabled = true
   
-  nsg_id = module.nsg.id
+  # Service Delegation (for AKS)
+  delegation = {
+    name = "aks-delegation"
+    service_delegation = {
+      name    = "Microsoft.ContainerService/managedClusters"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action"
+      ]
+    }
+  }
+  
+  # Network Security Group
+  network_security_group_id = module.nsg["aks"].id
+  
+  # Route Table
+  route_table_id = module.route_table["aks"].id
+  
+  # NAT Gateway (optional)
+  nat_gateway_id = module.nat_gateway.id
+}
+
+# Example: Private Endpoint Subnet
+module "subnet_pe" {
+  source = "./modules/subnet"
+
+  name                = "snet-pe-prod"
+  resource_group_name = module.resource_group.name
+  virtual_network_name = module.vnet.name
+  address_prefixes    = ["10.0.2.0/24"]
+  
+  private_endpoint_network_policies_enabled = true
+  
+  service_endpoints = [
+    "Microsoft.KeyVault",
+    "Microsoft.Storage"
+  ]
+}
+
+# Example: MySQL Flexible Server Subnet
+module "subnet_mysql" {
+  source = "./modules/subnet"
+
+  name                = "snet-mysql-prod"
+  resource_group_name = module.resource_group.name
+  virtual_network_name = module.vnet.name
+  address_prefixes    = ["10.0.3.0/24"]
+  
+  delegation = {
+    name = "mysql-delegation"
+    service_delegation = {
+      name    = "Microsoft.DBforMySQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action"
+      ]
+    }
+  }
+}
+
+# Example: Multiple Subnets with for_each
+locals {
+  subnets = {
+    aks = {
+      name             = "snet-aks-prod"
+      address_prefix   = "10.0.1.0/24"
+      delegation      = "Microsoft.ContainerService/managedClusters"
+      service_endpoints = ["Microsoft.KeyVault", "Microsoft.ContainerRegistry"]
+    }
+    pe = {
+      name             = "snet-pe-prod"
+      address_prefix   = "10.0.2.0/24"
+      private_endpoint_enabled = true
+      service_endpoints = ["Microsoft.KeyVault"]
+    }
+    mysql = {
+      name             = "snet-mysql-prod"
+      address_prefix   = "10.0.3.0/24"
+      delegation      = "Microsoft.DBforMySQL/flexibleServers"
+    }
+  }
+}
+
+module "subnets" {
+  source   = "./modules/subnet"
+  for_each = local.subnets
+
+  name                = each.value.name
+  resource_group_name = module.resource_group.name
+  virtual_network_name = module.vnet.name
+  address_prefixes    = [each.value.address_prefix]
+  
+  service_endpoints = lookup(each.value, "service_endpoints", [])
+  
+  delegation = lookup(each.value, "delegation", null) != null ? {
+    name = "${each.key}-delegation"
+    service_delegation = {
+      name    = each.value.delegation
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  } : null
+  
+  private_endpoint_network_policies_enabled = lookup(each.value, "private_endpoint_enabled", false)
 }
 ```
 
@@ -58,64 +185,98 @@ module "subnet" {
 
 | Name | Description | Type | Required | Default |
 |------|-------------|------|----------|---------|
-| subnet_name | Name of the subnet | string | yes | - |
+| name | Subnet name | string | yes | - |
 | resource_group_name | Resource group name | string | yes | - |
-| vnet_name | Virtual network name | string | yes | - |
-| address_prefixes | CIDR ranges for the subnet | list(string) | yes | - |
-| service_endpoints | List of service endpoints | list(string) | no | [] |
-| delegations | List of subnet delegations | list(object) | no | [] |
-| nsg_id | NSG ID to associate | string | no | null |
-| route_table_id | Route table ID to associate | string | no | null |
-| private_endpoint_network_policies_enabled | Enable/disable private endpoint policies | bool | no | true |
-| private_link_service_network_policies_enabled | Enable/disable private link policies | bool | no | true |
-
-### Delegation Object Structure
-
-```hcl
-object({
-  name = string
-  service_delegation = object({
-    name    = string
-    actions = list(string)
-  })
-})
-```
+| virtual_network_name | VNet name | string | yes | - |
+| address_prefixes | Address prefixes | list(string) | yes | - |
+| service_endpoints | Service endpoints | list(string) | no | [] |
+| delegation | Service delegation | object | no | null |
+| private_endpoint_network_policies_enabled | Enable PE policies | bool | no | false |
+| private_link_service_network_policies_enabled | Enable PLS policies | bool | no | false |
+| network_security_group_id | NSG ID | string | no | null |
+| route_table_id | Route table ID | string | no | null |
+| nat_gateway_id | NAT gateway ID | string | no | null |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| id | The Subnet ID |
-| name | The name of the Subnet |
-| address_prefixes | The address prefixes of the Subnet |
-| resource_group_name | The name of the resource group |
+| id | The subnet ID |
+| name | The name of the subnet |
+| address_prefix | The address prefix |
+| resource_group_name | The resource group name |
 
 ## Best Practices
 
-### IP Address Planning
-- Plan address space carefully for future growth
-- Consider IP requirements for services
-- Leave space for additional endpoints
-- Document IP allocation
-
-### Service Endpoints
-Common service endpoints to consider:
-- Microsoft.Storage
-- Microsoft.KeyVault
-- Microsoft.ContainerRegistry
-- Microsoft.Sql
-- Microsoft.Web
+### Address Space Planning
+- Use CIDR calculator
+- Plan for growth
+- Consider service requirements
+- Document allocations
+- Reserve ranges
+- Plan expansions
+- Monitor usage
+- Regular review
 
 ### Security
-- Associate NSG for traffic control
-- Enable private endpoint policies
-- Use service endpoints for Azure services
-- Implement proper route tables
+- NSG associations
+- Service endpoints
+- Network policies
+- Access controls
+- Regular audits
+- Monitor traffic
+- Update policies
+- Security baseline
 
-### Delegations
-Common delegation scenarios:
-- AKS clusters
-- App Service
-- Azure NetApp Files
-- SQL Managed Instances
-- Azure Container Instances
+### Service Integration
+- Proper delegations
+- Endpoint policies
+- Service requirements
+- Dependency mapping
+- Version compatibility
+- Integration testing
+- Update procedures
+- Documentation
+
+### Networking
+- Route tables
+- NAT gateways
+- Load balancers
+- Private endpoints
+- Traffic routing
+- DNS integration
+- Network monitoring
+- Performance tracking
+
+### Common Subnet Types
+
+#### AKS Subnet
+```hcl
+name = "snet-aks-prod"
+address_prefixes = ["10.0.1.0/24"]
+delegation = {
+  name = "aks"
+  service_delegation = {
+    name = "Microsoft.ContainerService/managedClusters"
+  }
+}
+```
+
+#### Private Endpoint Subnet
+```hcl
+name = "snet-pe-prod"
+address_prefixes = ["10.0.2.0/24"]
+private_endpoint_network_policies_enabled = true
+```
+
+#### Database Subnet
+```hcl
+name = "snet-mysql-prod"
+address_prefixes = ["10.0.3.0/24"]
+delegation = {
+  name = "mysql"
+  service_delegation = {
+    name = "Microsoft.DBforMySQL/flexibleServers"
+  }
+}
+```

@@ -1,5 +1,7 @@
 # Virtual Network Module
 
+A Terraform module for deploying Azure Virtual Networks with comprehensive networking features and security controls.
+
 ## Prerequisites and Setup
 
 ### 1. Required Role Assignments and Permissions
@@ -15,51 +17,30 @@ az role assignment create \
     --assignee $(az account show --query user.name -o tsv) \
     --role "Network Contributor" \
     --scope "/subscriptions/$(az account show --query id -o tsv)"
-
-# For DDoS Protection, verify DDoS Protection Contributor role
-az role assignment create \
-    --assignee $(az account show --query user.name -o tsv) \
-    --role "DDoS Protection Contributor" \
-    --scope "/subscriptions/$(az account show --query id -o tsv)"
 ```
 
-### 2. Setting up DDoS Protection (Optional)
+### 2. DDoS Protection Setup (Optional)
 ```bash
-# Create DDoS Protection Plan
+# Check DDoS protection plan availability
+az network ddos-protection list \
+    --query "[].{Name:name, ResourceGroup:resourceGroup, VirtualNetworks:virtualNetworks}" \
+    -o table
+
+# Create DDoS protection plan if needed
 az network ddos-protection create \
-    --name "your-ddos-plan" \
+    --name "ddos-plan" \
     --resource-group "your-rg" \
-    --location "your-location" \
-    --query id -o tsv
+    --location "eastus" \
+    --vnets "your-vnet-name"
 ```
 
 ### 3. Network Watcher Requirements
 ```bash
-# Enable Network Watcher in your region
+# Ensure Network Watcher is enabled
 az network watcher configure \
     --resource-group NetworkWatcherRG \
-    --locations "your-location" \
+    --locations "eastus" \
     --enabled true
-
-# Verify Network Watcher status
-az network watcher list \
-    --query "[].{Location:location, Enabled:provisioningState}" \
-    -o table
-```
-
-### 4. DNS Configuration
-```bash
-# List available private DNS zones
-az network private-dns zone list \
-    --query "[].{Name:name, ResourceGroup:resourceGroup}" \
-    -o table
-
-# Get custom DNS server IPs (if using Azure AD DS or custom DNS)
-az network dns record-set list \
-    --resource-group "your-dns-rg" \
-    --zone-name "your-dns-zone" \
-    --query "[].{Name:name, Type:type, TTL:ttl, Records:aRecords[].ipv4Address}" \
-    -o table
 ```
 
 ## Features
@@ -72,6 +53,10 @@ az network dns record-set list \
 - Network peering support
 - Custom DNS servers
 - Resource tagging
+- Network security
+- Subnet management
+- Service endpoints
+- Private endpoints
 
 ## Usage
 
@@ -86,36 +71,45 @@ module "vnet" {
   
   dns_servers = ["168.63.129.16", "10.0.0.4"]  # Azure DNS and custom DNS
   
+  # Optional DDoS protection
   ddos_protection_plan = {
     id     = azurerm_network_ddos_protection_plan.example.id
     enable = true
   }
+  
+  # Optional subnet configuration
+  subnets = {
+    aks = {
+      name             = "snet-aks"
+      address_prefixes = ["10.0.0.0/22"]
+      service_endpoints = [
+        "Microsoft.KeyVault",
+        "Microsoft.ContainerRegistry"
+      ]
+    }
+    pe = {
+      name             = "snet-pe"
+      address_prefixes = ["10.0.4.0/24"]
+      enforce_private_link_endpoint_network_policies = true
+    }
+  }
+  
+  # Optional peering configuration
+  peerings = [
+    {
+      name                         = "peer-to-hub"
+      remote_virtual_network_id    = data.azurerm_virtual_network.hub.id
+      allow_virtual_network_access = true
+      allow_forwarded_traffic     = true
+      allow_gateway_transit       = false
+      use_remote_gateways        = true
+    }
+  ]
 
   tags = {
     Environment = "Production"
     ManagedBy   = "Terraform"
   }
-}
-
-# With peering configuration
-module "vnet_with_peering" {
-  source = "./modules/virtual_network"
-
-  vnet_name           = "prod-vnet-2"
-  resource_group_name = module.resource_group.name
-  location           = "eastus2"
-  address_space      = ["172.16.0.0/16"]
-
-  peerings = [
-    {
-      name                         = "peer-to-prod"
-      remote_virtual_network_id    = module.vnet.id
-      allow_virtual_network_access = true
-      allow_forwarded_traffic      = true
-      allow_gateway_transit        = false
-      use_remote_gateways         = false
-    }
-  ]
 }
 ```
 
@@ -136,11 +130,11 @@ module "vnet_with_peering" {
 | address_space | Address spaces for the VNet | list(string) | yes | - |
 | dns_servers | Custom DNS servers | list(string) | no | [] |
 | ddos_protection_plan | DDoS protection plan configuration | object | no | null |
+| subnets | Subnet configurations | map(object) | no | {} |
 | peerings | VNet peering configurations | list(object) | no | [] |
 | tags | Resource tags | map(string) | no | {} |
 
 ### DDoS Protection Plan Object
-
 ```hcl
 object({
   id     = string
@@ -148,16 +142,27 @@ object({
 })
 ```
 
-### Peering Object
+### Subnet Object
+```hcl
+object({
+  name                                          = string
+  address_prefixes                             = list(string)
+  service_endpoints                            = optional(list(string))
+  enforce_private_link_endpoint_network_policies = optional(bool)
+  enforce_private_link_service_network_policies  = optional(bool)
+  delegation                                   = optional(map(object))
+})
+```
 
+### Peering Object
 ```hcl
 object({
   name                         = string
   remote_virtual_network_id    = string
   allow_virtual_network_access = bool
-  allow_forwarded_traffic      = bool
-  allow_gateway_transit        = bool
-  use_remote_gateways         = bool
+  allow_forwarded_traffic     = bool
+  allow_gateway_transit       = bool
+  use_remote_gateways        = bool
 })
 ```
 
@@ -169,6 +174,7 @@ object({
 | name | The name of the Virtual Network |
 | address_space | The address space of the Virtual Network |
 | guid | The GUID of the Virtual Network |
+| subnet_ids | Map of subnet names to IDs |
 
 ## Best Practices
 
@@ -177,21 +183,47 @@ object({
 - Plan for future growth
 - Consider peering requirements
 - Document IP allocation strategy
+- Reserve ranges for specific services
+- Account for subnet requirements
+- Plan for network expansion
+- Consider hybrid connectivity
 
 ### Network Security
 - Implement DDoS protection
 - Configure proper DNS servers
 - Use network segmentation
 - Plan subnet structures
+- Enable service endpoints
+- Configure NSG rules
+- Enable flow logs
+- Regular security audits
 
 ### Peering Configuration
 - Document peering relationships
 - Consider asymmetric peering rules
 - Plan for transitive peering needs
 - Monitor peering status
+- Consider bandwidth requirements
+- Plan for failover scenarios
+- Review routing implications
+- Regular connectivity testing
 
 ### Resource Organization
 - Use consistent naming
 - Implement proper tagging
 - Document network topology
 - Regular configuration review
+- Monitor resource usage
+- Plan maintenance windows
+- Set up monitoring
+- Regular backup verification
+
+### Cost Optimization
+- Monitor bandwidth usage
+- Review DDoS protection needs
+- Optimize peering costs
+- Plan capacity efficiently
+- Regular usage review
+- Consider reserved capacity
+- Monitor data transfer
+- Track associated resources
