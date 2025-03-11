@@ -15,25 +15,25 @@ This repository contains Terraform configurations for deploying production-grade
 ```
 .
 ├── modules/                    # Reusable infrastructure modules
-│   ├── aad_group/             # Azure AD Group management
-│   ├── acr/                   # Azure Container Registry
-│   ├── aks/                   # Azure Kubernetes Service
-│   ├── bastion/               # Azure Bastion Host
-│   ├── keyvault/              # Azure Key Vault
-│   ├── linux_vm/              # Linux Virtual Machines
-│   ├── log_analytics/         # Log Analytics Workspace
-│   ├── mysql_flexible/        # Azure Database for MySQL Flexible Server
-│   ├── network_security_group/# Network Security Groups
-│   ├── private_dns_zone/      # Private DNS Zones
-│   ├── resource_group/        # Resource Groups
-│   ├── storage/               # Azure Storage Accounts
-│   ├── subnet/                # Subnet configurations
-│   └── virtual_network/       # Virtual Network
-├── main.tf                    # Main infrastructure configuration
-├── variables.tf               # Root module variable declarations
-├── terraform.tfvars           # Variable assignments
-├── providers.tf               # Provider configurations
-└── outputs.tf                 # Output declarations
+│   ├── aad_group/              # Azure AD Group management
+│   ├── acr/                    # Azure Container Registry
+│   ├── aks/                    # Azure Kubernetes Service
+│   ├── bastion/                # Azure Bastion Host
+│   ├── keyvault/               # Azure Key Vault
+│   ├── linux_vm/               # Linux Virtual Machines
+│   ├── log_analytics/          # Log Analytics Workspace
+│   ├── mysql_flexible/         # Azure Database for MySQL Flexible Server
+│   ├── network_security_group/ # Network Security Groups
+│   ├── private_dns_zone/       # Private DNS Zones
+│   ├── resource_group/         # Resource Groups
+│   ├── storage/                # Azure Storage Accounts
+│   ├── subnet/                 # Subnet configurations
+│   └── virtual_network/        # Virtual Network
+├── main.tf                     # Main infrastructure configuration
+├── variables.tf                # Root module variable declarations
+├── terraform.tfvars            # Variable assignments
+├── providers.tf                # Provider configurations
+└── outputs.tf                  # Output declarations
 ```
 
 ## Module Details
