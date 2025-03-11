@@ -1,4 +1,4 @@
-# Azure Infrastructure with Terraform
+# Azure Application AKS Landing Zone with Terraform
 
 This repository contains Terraform configurations for deploying production-grade Azure infrastructure using the HashiCorp azurerm provider.
 
