@@ -180,3 +180,197 @@ Relevant resource information is exposed through outputs.tf, including:
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## GitHub Copilot Demo
+
+This project is set up to demonstrate how GitHub Copilot can enhance your Terraform development workflow. Below are examples of how to leverage Copilot for your Azure infrastructure projects:
+
+### Demo Scenarios
+
+1. **Module Creation**: Use Copilot to generate new Azure resource modules
+2. **Variable Definition**: Generate comprehensive variable definitions with proper types and descriptions
+3. **Resource Configuration**: Write complex resource configurations with best practices applied
+4. **Documentation**: Create or enhance module README files and comments
+5. **HCL Syntax Assistance**: Leverage Copilot for complex HCL syntax like dynamic blocks and for_each
+
+### Using Copilot with This Project
+
+#### Creating a New Module
+
+To use GitHub Copilot to create a new module:
+
+1. Create a new directory under `modules/` for your resource type
+2. Initialize the required files (main.tf, variables.tf, outputs.tf, README.md)
+3. Start typing comments describing what you want, for example:
+   ```hcl
+   # Create an Azure App Service module with the following features:
+   # - Support for app service plan configuration
+   # - Integration with virtual network
+   # - Support for custom app settings
+   # - System-assigned managed identity
+   ```
+4. Let Copilot suggest the implementation based on your comments
+
+#### Enhancing Existing Modules
+
+Copilot can help enhance existing modules:
+
+1. Add descriptive comments about what you want to add or modify
+2. For example, type: `# Add support for private endpoints to this storage account module`
+3. Copilot will suggest the appropriate resources and configurations
+
+#### Writing Terraform Variables
+
+Copilot can help create well-documented variables:
+
+```hcl
+# Define a variable for controlling the SKU of the Azure Key Vault
+```
+
+#### Generating Resource Blocks
+
+Copilot can create complex resource blocks based on your intent:
+
+```hcl
+# Create an Azure Container Registry with geo-replication, private endpoints, and RBAC
+```
+
+## Creating New Modules
+
+When creating new modules for this project, follow these guidelines to ensure consistency:
+
+### Module Structure Template
+
+```
+modules/new_module/
+├── main.tf           # Primary resource configuration
+├── variables.tf      # Input variable declarations
+├── outputs.tf        # Output definitions
+└── README.md         # Module documentation
+```
+
+### Required Files and Contents
+
+1. **main.tf**:
+   ```hcl
+   # Azure [Resource Type] Module
+   # This module deploys [resource description]
+
+   resource "azurerm_[resource_type]" "this" {
+     name                = var.name
+     resource_group_name = var.resource_group_name
+     location            = var.location
+     
+     # Resource-specific properties
+     
+     tags = var.tags
+   }
+   ```
+
+2. **variables.tf**:
+   ```hcl
+   variable "name" {
+     description = "The name of the resource"
+     type        = string
+   }
+
+   variable "resource_group_name" {
+     description = "The name of the resource group"
+     type        = string
+   }
+
+   variable "location" {
+     description = "The Azure region where the resource should be created"
+     type        = string
+   }
+
+   variable "tags" {
+     description = "A map of tags to assign to the resources"
+     type        = map(string)
+     default     = {}
+   }
+
+   # Resource-specific variables
+   ```
+
+3. **outputs.tf**:
+   ```hcl
+   output "id" {
+     description = "The ID of the created resource"
+     value       = azurerm_[resource_type].this.id
+   }
+
+   output "name" {
+     description = "The name of the created resource"
+     value       = azurerm_[resource_type].this.name
+   }
+
+   # Resource-specific outputs
+   ```
+
+4. **README.md**:
+   ```markdown
+   # Azure [Resource Type] Module
+
+   This module deploys [resource description].
+
+   ## Usage
+
+   ```hcl
+   module "[resource_type]" {
+     source              = "./modules/[resource_type]"
+     name                = "example-name"
+     resource_group_name = "example-rg"
+     location            = "eastus"
+     
+     # Resource-specific arguments
+     
+     tags = {
+       Environment = "Production"
+     }
+   }
+   ```
+
+   ## Required Arguments
+
+   * `name` - (Required) The name of the resource
+   * `resource_group_name` - (Required) The name of the resource group
+   * `location` - (Required) The Azure region where the resource should be created
+
+   ## Optional Arguments
+
+   * `tags` - (Optional) A map of tags to assign to the resources
+
+   ## Outputs
+
+   * `id` - The ID of the created resource
+   * `name` - The name of the created resource
+   ```
+
+### Best Practices for New Modules
+
+1. **Naming Convention**: Follow the project's established naming patterns
+2. **Feature Flags**: Use boolean variables for optional features
+3. **Validation**: Add variable validation for critical inputs
+4. **Dependencies**: Use explicit depends_on for critical dependencies
+5. **Documentation**: Document all inputs, outputs, and examples
+6. **Tagging**: Support consistent tagging across all resources
+7. **Dynamic Blocks**: Use for repetitive nested configurations
+8. **Error Handling**: Use count or for_each conditionals for optional resources
+
+## Environment Configuration
+
+This project uses environment-specific configuration files stored in the `environments/` directory:
+
+```
+environments/
+├── dev.tfvars       # Development environment variables
+├── staging.tfvars   # Staging environment variables
+└── prod.tfvars      # Production environment variables
+```
+
+To deploy to a specific environment:
+
+```bash
+terraform apply -var-file=environments/dev.tfvars
+```
