@@ -87,7 +87,7 @@ resource "azurerm_dashboard_grafana" "grafana" {
   resource_group_name               = var.resource_group_name
   location                          = var.location
   sku                              = "Standard"
-  grafana_major_version            = "10"
+  grafana_major_version            = "11"
   api_key_enabled                   = true
   deterministic_outbound_ip_enabled = true
   public_network_access_enabled     = true
@@ -174,7 +174,7 @@ resource "azurerm_kubernetes_cluster" "this" {
       "nodepool-type" = "system"
       "environment"   = "production"
     }
-    max_pods             = 30
+    max_pods             = 30 # Should be adjustable
     orchestrator_version = var.kubernetes_version
     
     upgrade_settings {
@@ -211,6 +211,7 @@ resource "azurerm_kubernetes_cluster" "this" {
 
   # Log Analytics integration
   oms_agent {
+    msi_auth_for_monitoring_enabled = true
     log_analytics_workspace_id = var.log_analytics_workspace_id
   }
 
@@ -319,37 +320,4 @@ resource "azurerm_kubernetes_cluster_node_pool" "work" {
   }
   
   tags = var.tags
-}
-
-# Create data collection rule for AKS metrics
-# Configures how metrics are collected and routed
-resource "azurerm_monitor_data_collection_rule" "aks" {
-  count               = var.enable_managed_prometheus ? 1 : 0
-  name                = "${var.cluster_name}-metrics"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-
-  destinations {
-    monitor_account {
-      monitor_account_id = var.monitor_workspace_id != null ? var.monitor_workspace_id : azurerm_monitor_workspace.prometheus[0].id
-      name              = "prometheus"
-    }
-  }
-
-  data_flow {
-    streams      = ["Microsoft-PrometheusMetrics"]
-    destinations = ["prometheus"]
-  }
-
-  description = "Data collection rule for AKS cluster metrics"
-  tags        = var.tags
-}
-
-# Associate data collection rule with AKS cluster
-# Links the collection rule to the cluster
-resource "azurerm_monitor_data_collection_rule_association" "aks" {
-  count                   = var.enable_managed_prometheus ? 1 : 0
-  name                    = "${var.cluster_name}-metrics-dcra"
-  target_resource_id      = azurerm_kubernetes_cluster.this.id
-  data_collection_rule_id = azurerm_monitor_data_collection_rule.aks[0].id
 }

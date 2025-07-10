@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.17.0"  // Pinning to specific minor version for stability
+      version = "~> 4.35.0" // Pinning to specific minor version for stability
     }
     random = {
       source  = "hashicorp/random"
