@@ -1,3 +1,7 @@
+locals {
+  cloud_init_file = var.enable_azure_cli_kubectl_install ? "cloud-init.yaml" : "cloud-init-basic.yaml"
+}
+
 resource "azurerm_network_interface" "vm_nic" {
   name                = "${var.vm_name}-nic"
   location            = var.location
@@ -18,6 +22,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
   admin_username      = var.admin_username
   admin_password      = var.admin_password
   disable_password_authentication = false
+  
+  # Cloud-init configuration to install Azure CLI
+  custom_data = var.custom_data != "" ? base64encode(var.custom_data) : base64encode(
+    file("${path.module}/${local.cloud_init_file}")
+  )
   
   identity {
     type = "SystemAssigned"

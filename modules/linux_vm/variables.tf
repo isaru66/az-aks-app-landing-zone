@@ -77,3 +77,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_azure_cli_kubectl_install" {
+  description = "Whether to install Azure CLI via cloud-init"
+  type        = bool
+  default     = true
+}
+
+variable "custom_data" {
+  description = "Custom cloud-init script to run on VM startup"
+  type        = string
+  default     = ""
+}
