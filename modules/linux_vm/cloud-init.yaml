@@ -1,0 +1,37 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - docker.io
+
+# Run commands to install Azure CLI
+runcmd:
+  # install Azure CLI 
+  - echo "Installing Azure CLI..."
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+  - echo "Azure CLI installation completed"
+  - az --version
+  # set kubectl and kubelogin
+  - echo "Installing kubectl via Azure CLI..."
+  - az aks install-cli
+  - echo "kubectl installation completed"
+  - kubectl version --client
+  # set kubectl alias and auto-completion for bash
+  - echo "source <(kubectl completion bash)" >> ~/.bashrc
+  - echo "alias k=kubectl" >> ~/.bashrc
+  - echo "complete -o default -F __start_kubectl k" >> ~/.bashrc
+  # done
+  - echo "Cloud-init configuration completed"
+
+# Log all output
+output:
+  all: '| tee -a /var/log/cloud-init-output.log'
+
+# Final message
+final_message: "The system is finally up, after $UPTIME seconds"

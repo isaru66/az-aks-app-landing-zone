@@ -1,0 +1,21 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+# Install basic packages
+packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Run basic commands
+runcmd:
+  - echo "Basic cloud-init configuration completed"
+
+# Log all output
+output:
+  all: '| tee -a /var/log/cloud-init-output.log'
+
+# Final message
+final_message: "The system is finally up, after $UPTIME seconds"
