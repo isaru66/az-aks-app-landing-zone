@@ -23,9 +23,9 @@ runcmd:
   - echo "kubectl installation completed"
   - kubectl version --client
   # set kubectl alias and auto-completion for bash
-  - echo "source <(kubectl completion bash)" >> ~/.bashrc
-  - echo "alias k=kubectl" >> ~/.bashrc
-  - echo "complete -o default -F __start_kubectl k" >> ~/.bashrc
+  - echo "source <(kubectl completion bash)" >> /home/adminuser/.bashrc
+  - echo "alias k=kubectl" >> /home/adminuser/.bashrc
+  - echo "complete -o default -F __start_kubectl k" >> /home/adminuser/.bashrc
   # done
   - echo "Cloud-init configuration completed"
 
